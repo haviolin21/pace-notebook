@@ -295,3 +295,16 @@ summary { font-weight: 700; }
 #run-log [hidden] { display:none; }
 #past-rows fieldset { min-width:0; margin:12px 0; padding:12px; border:1px solid var(--line,#cad4c6); border-radius:12px; }
 #past-rows small { display:block; }
+#past-rows .layout { grid-template-columns:repeat(2,minmax(0,1fr)); }
+#past-rows label, #past-rows input { min-width:0; max-width:100%; }
+#past-rows fieldset:only-child .remove-row { display:none; }
+#past-list details { border-bottom:1px solid var(--line); min-width:0; }
+#past-list summary { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:.65rem; min-height:48px; cursor:pointer; }
+#past-list summary::-webkit-details-marker { display:none; }
+#past-list summary span { color:var(--muted); font-size:.875rem; }
+#past-list form { padding-bottom:.75rem; }
+.week-track { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.week-track small { max-width:100%; overflow-wrap:anywhere; text-align:center; }
+@media (max-width:600px) {
+  #past-rows .layout { grid-template-columns:minmax(0,1fr); gap:0; }
+}

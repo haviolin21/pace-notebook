@@ -106,7 +106,7 @@ function mountJournal(dateKey, weekday, planned, selectedType){
       const li = document.createElement('li');
       if(run)li.className = 'finished';
       if(i === weekday) li.setAttribute('aria-current','date');
-      li.innerHTML = '<small>'+day+'</small><b>'+(run?'✓':date.getUTCDate())+'</b>';
+      li.innerHTML = '<small>'+day+'</small><b>'+date.getUTCDate()+'</b>'+(run?'<small>'+kmText(run.km)+' km</small>':'');
       li.setAttribute('aria-label', day+'요일 '+(i===weekday?'오늘 ':'')+(run?run.km+'km 완료':'기록 없음'));
       list.append(li);
     });

@@ -23,12 +23,16 @@ function mountMileage(today,onChange){
   tool('내 마일리지',`<div class="mileage-period" role="group" aria-label="집계 기간"></div>
     <div class="mileage-number" aria-live="polite"></div><p id="mileage-summary"></p>
     <ol class="week-track"></ol><p id="run-receipt"></p>
-    <details id="past-runs"><summary>지난 러닝 추가·수정</summary>
+    <details id="past-runs"><summary>지난 러닝 추가</summary>
       <form id="past-form"><div id="past-rows"></div>
       <div class="actions"><button type="button" id="past-add">다른 날짜 추가</button><button type="submit">기록 저장</button></div></form>
-      <p role="status" id="past-status"></p><div id="past-list"></div></details>`);
+      </details><p role="status" id="past-status"></p><h4>날짜별 러닝 기록</h4><div id="past-list"></div><button type="button" id="past-more" hidden>이전 기록 더 보기</button>`);
   const form=$('#past-form'),period=$('.mileage-period');
-  let current='월간';
+  let current='월간',visibleCount=7;
+  $('#past-more').onclick=()=>{visibleCount+=14;render();};
+  function updatedRun(old,km){
+    return {...old,type:old?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
+  }
   function render(){
     const runs=loggedRuns(today),week=periodStats(runs,planMonday(today),today);
     const start=current==='주간'?planMonday(today):current==='올해'?today.slice(0,4)+'-01-01':monthStart(today);
@@ -37,9 +41,30 @@ function mountMileage(today,onChange){
     $('#mileage-summary').textContent=stats.count+'회 러닝 · 이번 주 '+kmText(week.km)+' km';
     for(const b of period.children)b.setAttribute('aria-pressed',String(b.textContent===current));
     const list=$('#past-list');list.replaceChildren();
-    for(const r of runs.filter(r=>r.date<today).slice(0,5)){
-      const b=document.createElement('button');b.type='button';b.textContent=r.date+' · '+kmText(r.km)+' km 수정';
-      b.onclick=()=>{selectRecord(r.date);};list.append(b);
+    const past=runs.filter(r=>r.date<today);
+    $('#past-more').hidden=past.length<=visibleCount;
+    if(!past.length)list.textContent='아직 저장한 지난 러닝이 없습니다.';
+    for(const run of past.slice(0,visibleCount)){
+      const item=document.createElement('details');
+      item.innerHTML='<summary><time></time><strong></strong><span>수정</span></summary><form><label>달린 거리 (km)<input type="number" name="km" min="0.01" step="0.01" inputmode="decimal" required></label><div class="actions"><button type="submit">변경 저장</button><button type="button">취소</button></div></form>';
+      item.querySelector('time').textContent=run.date;
+      item.querySelector('strong').textContent=kmText(run.km)+' km';
+      const editor=item.querySelector('form'),field=editor.elements.km;
+      field.value=run.km;
+      item.ontoggle=()=>{if(!item.open)field.value=run.km;};
+      editor.querySelector('[type=button]').onclick=()=>{item.open=false;item.querySelector('summary').focus();};
+      editor.onsubmit=e=>{
+        e.preventDefault();
+        const km=field.valueAsNumber;
+        try{localStorage.setItem(journalPrefix+run.date,JSON.stringify(updatedRun(runOn(run.date),km)));}
+        catch{status.textContent='거리를 저장하지 못했습니다.';return;}
+        for(const row of rows.children){
+          if(row.elements.date.value===run.date && row.elements.km.value===row.dataset.original)row.elements.date.onchange();
+        }
+        onChange();
+        status.textContent=run.date+' · '+kmText(km)+' km로 수정했습니다.';
+      };
+      list.append(item);
     }
   }
   for(const name of ['주간','월간','올해']){
@@ -71,15 +96,6 @@ function mountMileage(today,onChange){
     load(date);
     return row;
   }
-  function selectRecord(date){
-    let row=Array.from(rows.children).find(r=>r.elements.date.value===date);
-    if(!row){
-      row=Array.from(rows.children).find(r=>!r.elements.km.value && !r.dataset.original);
-      if(row){row.elements.date.value=date;row.elements.date.onchange();}
-      else row=addRow(date);
-    }
-    row.elements.km.focus();
-  }
   $('#past-add').onclick=()=>{
     let date=rows.lastElementChild.elements.date.value||today;
     const dates=new Set(Array.from(rows.children,r=>r.elements.date.value));
@@ -95,7 +111,7 @@ function mountMileage(today,onChange){
         const date=row.elements.date.value,km=row.elements.km.valueAsNumber;
         if(entries.has(date)){status.textContent='같은 날짜가 두 번 있습니다. 날짜를 확인해 주세요.';row.elements.date.focus();return;}
         const key=journalPrefix+date,old=runOn(date);
-        const run={...old,type:old?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
+        const run=updatedRun(old,km);
         entries.set(date,{key,previous:localStorage.getItem(key),run});
       }
       for(const entry of entries.values()){
@@ -109,7 +125,8 @@ function mountMileage(today,onChange){
     }
     const next=shiftPlanDate([...entries.keys()].sort()[0],-1);
     onChange();rows.replaceChildren();addRow(next);
-    status.textContent=entries.size+'일의 러닝 기록을 저장했습니다.';
+    $('#past-runs').open=false;
+    status.textContent=Array.from(entries,([date,{run}])=>date+' · '+kmText(run.km)+' km').join(' / ')+' 저장했습니다.';
   };
   addRow(yesterday);return render;
 }
