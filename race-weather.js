@@ -60,7 +60,37 @@ async function fetchRunningForecast({city, area}, offset = 0){
     hourly.wind_speed_10m[index], hourly.precipitation[index]
   ];
   if(![temperature, feelsLike, wind, rain].every(Number.isFinite)) throw Error('Incomplete forecast');
-  return {hour, temperature, feelsLike, wind, rain};
+  const nowHour = new Date(Date.now()+9*3600000).toISOString().slice(0,13)+':00';
+  const evening = nowHour.slice(0,10)+'T18:00';
+  const start = nowHour > evening ? nowHour : evening;
+  const windows = hourly.time.filter(h => h>=start).filter((_,i)=>i%2===0).slice(0,3).map(h => {
+    const i = hourly.time.indexOf(h);
+    return {hour:h,feel:hourly.apparent_temperature[i],rain:hourly.precipitation[i],wind:hourly.wind_speed_10m[i]};
+  }).filter(w=>[w.feel,w.rain,w.wind].every(Number.isFinite));
+  return {hour, temperature, feelsLike, wind, rain, windows};
+}
+
+function renderWindows(container,windows){
+  container.replaceChildren();
+  if(!windows.length)return;
+  const day = new Date(Date.now()+9*3600000).toISOString().slice(0,10);
+  const label = w => (w.hour.slice(0,10)===day?'':'내일 ')+Number(w.hour.slice(11,13))+'시';
+  const heading = document.createElement('h4');
+  heading.textContent = '몇 시에 뛸까요?';
+  const grid = document.createElement('div');
+  grid.className = 'hours';
+  for(const w of windows){
+    const cell = document.createElement('div');
+    cell.innerHTML = '<b>'+label(w)+'</b><strong>체감 '+w.feel+'°</strong><small>강수 '+w.rain+'mm</small><small>바람 '+w.wind+'m/s</small>';
+    grid.append(cell);
+  }
+  const summary = document.createElement('p');
+  const dry = windows.find(w=>w.rain===0);
+  const calm = windows.reduce((a,b)=>a.wind<=b.wind?a:b);
+  if(windows.every(w=>w.rain===0))summary.textContent = '비 예보가 없는 시간대입니다.'+(windows.some(w=>w.wind>calm.wind)?' '+label(calm)+'에 바람이 가장 약해요.':'');
+  else if(dry)summary.textContent = label(dry)+'에는 비 예보가 없어요.';
+  else summary.textContent = '비가 예보된 시간대입니다. 출발 전 강수량을 확인하세요.';
+  container.append(heading,grid,summary);
 }
 
 function outfitAdvice(t){
@@ -75,7 +105,7 @@ function weather(){
   tool('출발 시간의 날씨', `
     <div class="weather-favorites" id="weather-favorites" role="group" aria-label="즐겨찾는 지역" hidden></div>
     <p id="forecast-result" role="status"></p>
-    <div class="layout weather-fields">
+    <div id="weather-windows"></div><div class="layout weather-fields">
       <label>시·도<select id="city"></select></label>
       <label>구·군 / 시<select id="area"></select></label>
       <label>출발 시각<select id="when">
@@ -159,11 +189,13 @@ function weather(){
     const request=++serial;
     const place = {city:city.value, area:area.value};
     const locationLabel = weatherLocationLabel(place.city,place.area);
+    $('#weather-windows').replaceChildren();
     status.textContent=locationLabel+' 예보를 조회하는 중입니다…';
     try{
-      const {hour, temperature, feelsLike, wind, rain} = await fetchRunningForecast(place,Number(when.value));
+      const {hour, temperature, feelsLike, wind, rain, windows} = await fetchRunningForecast(place,Number(when.value));
       if(request!==serial||!status.isConnected)return;
       status.textContent=locationLabel+' · '+hour.replace('T',' ')+' · 기온 '+temperature+'°C · 체감 '+feelsLike+'°C · 바람 '+wind+'m/s · 강수 '+rain+'mm';
+      renderWindows($('#weather-windows'),windows);
       guide.value=feelsLike;clothes();
     }catch{if(request===serial && status.isConnected)status.textContent=locationLabel+' 예보를 불러오지 못했습니다. 다시 조회하거나 체감온도를 직접 입력하세요.'}
   }

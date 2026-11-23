@@ -46,9 +46,11 @@ main { max-width: 920px; margin: auto; padding: 28px 26px 52px; }
 .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 label { display: block; margin: 8px 0 12px; font-size: .9rem; font-weight: 650; }
 input:not([type=range]), select {
+  color: var(--ink); caret-color: var(--ink);
   display: block; width: 100%; min-height: 44px; margin-top: 4px;
   padding: 8px 10px; border: 1px solid #99ac9a; border-radius: 9px; background: #fffefa; font-size: 1rem;
 }
+input::placeholder { color: #526558; opacity: 1; }
 select {
   appearance: none; padding-right: 30px;
   background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%);
@@ -170,7 +172,7 @@ summary { font-weight: 700; }
 .coach-sessions small { text-align: right; }
 .coach-sessions p { margin-top: 7px; color: var(--muted); font-size: .9rem; }
 @media (max-width: 670px) {
-  .tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 .coach-input-feedback { color: var(--muted); font-size: .9rem; margin-top: 6px; }
@@ -196,3 +198,57 @@ summary { font-weight: 700; }
 .time-feedback.input-error { color: #9b3329; }
 .calculator label:has(#clock) { margin-bottom: 7px; }
 #converted-speed { color: var(--muted); font-size: .9rem; }
+
+/* A dark training cover and ruled pages share the notebook's paper palette. */
+.runner-tool { border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; background: transparent; padding-inline: 0; }
+#screen .today-card { position: relative; overflow: hidden; isolation: isolate; border: none; border-radius: 18px; background: #193e30; color: #fffdf2; padding: clamp(20px,4vw,38px); }
+.today-card::after { content:""; position:absolute; z-index:-1; right:-98px; top:-102px; width:260px; height:260px; border:1px solid #ffffff18; border-radius:50%; box-shadow:0 0 0 14px #ffffff09,0 0 0 28px #ffffff07,0 0 0 42px #ffffff06; pointer-events:none; }
+.today-card h3, .today-card small { color:#d3e1cb; }
+.today-session { margin-top:14px; }
+.today-pace strong { font: 650 clamp(2.25rem,8.8vw,4.7rem)/1.15 system-ui,sans-serif; letter-spacing:-.065em; color:#def6a6; font-variant-numeric:tabular-nums; }
+.today-pace strong span { font-size:.95rem; letter-spacing:0; white-space:nowrap; }
+.today-card .coach-input-feedback { color:#d3e1cb; }
+.today-card .coach-input-feedback.input-error { color:#ffcabd; }
+.today-card :focus-visible { outline-color:#c8e89e; }
+.today-card a { color:#e0efc8; }
+.today-weather-line { background:transparent; padding:12px 0; border-top:1px solid #ffffff35; }
+#screen #change-session { background:transparent; color:#eff5e8; border:0; text-decoration:underline; text-underline-offset:4px; padding:0 4px; }
+.run-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:10px; }
+#screen #open-run { color:#173c2c; background:#def6a6; border:0; padding-inline:22px; }
+#run-log { margin-block:16px; max-width:340px; }
+#week-total { font-size:1.55rem; font-weight:750; font-variant-numeric:tabular-nums; }
+.week-track { padding:0; margin:14px 0; list-style:none; display:grid; grid-template-columns:repeat(7,1fr); border-block:1px solid var(--line); }
+.week-track li { display:grid; justify-items:center; gap:6px; padding:9px 0; }
+.week-track b { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; }
+.week-track .finished b { background:var(--ink); color:var(--paper); }
+.week-track [aria-current=date] b { outline:2px solid var(--ink); outline-offset:2px; }
+.hours { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+.hours div { padding:10px 8px; border-left:2px solid #9eae8c; }
+.hours strong { display:block; margin-block:4px; }
+.pace-presets { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.pace-presets small { flex-basis:100%; }
+.session-picks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:14px 0; }
+#screen .session-picks button,#screen #today-pace-setup { background:#e8f0d8; color:#173c2c; border:none; }
+#screen #today-pace-setup { margin-block:10px; }
+#today-record,#today-first { max-width:480px; }
+#today-first summary {color:#fffdf2;}
+
+#screen .session-picks button[aria-pressed=true] { background:#c9eb89; color:#173c2c; box-shadow:inset 0 0 0 2px #376748; }
+#screen .session-picks button[data-run="첫 러닝"] { background:#ffcd80; color:#382508; font-weight:750; }
+.session-picks button[aria-pressed=true]::before { content:'✓ '; }
+#screen #back-choice { color:#e1ebdc; background:transparent; border-color:#799485; }
+.pb-actions { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+#screen .pb-actions button[type=submit] { flex:1; background:#21523b; color:white; font-weight:750; }
+#screen .today-card .pb-actions button[type=submit] { background:#d6f19a; color:#173c2c; }
+#screen .pb-actions #cancel-pb { color:var(--ink); }
+#race-time-preview:not(:empty) { padding:8px 0; font-weight:650; }
+
+.first-steps { padding-left:1.4rem; margin:12px 0; }
+.first-steps li { padding:4px 0; }
+#shoe-match h3 { margin-bottom:6px; }
+#shoe-match article a { display:inline-flex; align-items:center; min-height:44px; }
+@media(max-width:370px){.tabs { gap:0; padding-inline:3px; } .tabs a { padding-inline:1px; }}
+
+#screen #first-profile button[type=submit] { display:block; width:100%; min-height:48px; margin:12px 0; border:2px solid #285539; background:#daf39e; color:#163b2a; font-weight:750; }
+#first-status:not(:empty) { display:block; white-space:pre-line; line-height:1.65; padding:8px 0; font-weight:700; }
+#shoe-match .shoe-photo { width:100%; height:clamp(125px,35vw,195px); object-fit:contain; display:block; margin-bottom:12px; background:#fff; border-radius:8px; }
