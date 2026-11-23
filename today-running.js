@@ -246,6 +246,7 @@ function todayRunning(){
   const favorites = readWeatherFavorites();
   const places = favorites.length ? favorites : [{city:'서울',area:''}];
 
+  $('#screen h1').insertAdjacentHTML('afterend','<p class="today-intro">오늘 달릴 훈련을 고르고, 내 페이스와 소비 칼로리를 계산하고, 대회 기록을 비교해 보세요.</p>');
   tool(dateLabel, `
     <div id="today-overview">
       <h4 id="today-session" class="today-session"></h4>

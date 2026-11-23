@@ -4,6 +4,15 @@ function time(s){s=Math.round(s);return (s>=3600?Math.floor(s/3600)+':':'')+Stri
 const distances=[5,10,21.0975,42.195], names=['5km','10km','하프','풀코스'];
 const distanceOptions=distances.map((d,i)=>'<option value="'+d+'">'+names[i]+'</option>').join('');
 let speed=12;
+// Representative level-running speeds (mph) and METs from the 2024 Adult Compendium.
+const runningIntensity = [[3.15,3.3],[4.1,6.5],[4.55,7.8],[5.1,8.5],[5.65,9],[6.15,9.3],[6.7,10.5],[7,11],[7.5,11.8],[8,12],[8.6,12.5],[9,13],[9.45,14.8],[10,14.8],[11,16.8],[12,18.5],[13,19.8],[14,23]];
+function activeKcalPerKm(kph,kg){
+  const mph = kph/1.609344;
+  if(!Number.isFinite(mph) || mph<2.6 || mph>14 || !(kg>0)) return null;
+  const closest = runningIntensity.reduce((a,b)=>Math.abs(mph-a[0])<=Math.abs(mph-b[0])?a:b);
+  return (closest[1]-1)*kg/kph;
+}
+
 function calculator(){
   let mode='pace';
   $('#screen').insertAdjacentHTML('beforeend', `
@@ -27,7 +36,34 @@ function calculator(){
     </ul>
   `);
   const records = document.querySelectorAll('.distance-results strong');
+  tool('페이스별 예상 활동 칼로리', `
+    <div class="layout"><label>체중 (kg)<input id="kcal-weight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 70"></label>
+    <label>달린 거리 (km)<input id="kcal-distance" type="number" min="0.01" step="any" inputmode="decimal" value="5"></label></div>
+    <p id="kcal-result" role="status"></p>
+    <small>평지에서 달리는 성인의 평균 추정치입니다. 현재 속도와 가장 가까운 강도에서 휴식 소모량을 뺀 값으로 계산합니다. <a href="https://pacompendium.com/running/">달리기 강도 기준</a></small>`);
+  const weight = $('#kcal-weight'), distanceField = $('#kcal-distance');
+  weight.value = coachProfile().weight || '';
+  let displayedSpeed;
+  function renderCalories(){
+    const rate = activeKcalPerKm(displayedSpeed,weight.valueAsNumber);
+    let message = '체중을 입력하면 현재 페이스의 예상 칼로리가 표시됩니다.';
+    if(weight.valueAsNumber>0 && weight.validity.valid){
+      if(!Number.isFinite(displayedSpeed)) message = '페이스 또는 속도를 확인해 주세요.';
+      else if(!rate) message = '칼로리 추정 범위는 약 4.2–22.5 km/h입니다.';
+      else {
+        message = time(3600/displayedSpeed)+'/km 기준 · 1km당 약 '+Math.round(rate)+' kcal';
+        if(distanceField.valueAsNumber>0 && distanceField.validity.valid)
+          message += ' · '+distanceField.value+'km 총 약 '+Math.round(rate*distanceField.valueAsNumber)+' kcal';
+      }
+    }
+    $('#kcal-result').textContent = message;
+  }
+  distanceField.oninput = renderCalories;
+  runnerSettings(profile=>{weight.value=profile.weight || '';renderCalories();});
+  weight.oninput = ()=>{$('#runner-settings').elements.weight.value=weight.value;renderCalories();};
   function output(value){
+    displayedSpeed = value;
+    renderCalories();
     const valid = Number.isFinite(value) && value > 0;
     const seconds = valid ? 3600 / value : 0;
     if(valid) speed = value;

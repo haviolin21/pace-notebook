@@ -252,3 +252,7 @@ summary { font-weight: 700; }
 #screen #first-profile button[type=submit] { display:block; width:100%; min-height:48px; margin:12px 0; border:2px solid #285539; background:#daf39e; color:#163b2a; font-weight:750; }
 #first-status:not(:empty) { display:block; white-space:pre-line; line-height:1.65; padding:8px 0; font-weight:700; }
 #shoe-match .shoe-photo { width:100%; height:clamp(125px,35vw,195px); object-fit:contain; display:block; margin-bottom:12px; background:#fff; border-radius:8px; }
+
+.today-intro { margin:-.25rem 0 1rem; color:var(--ink); line-height:1.55; }
+#kcal-result { font-weight:700; line-height:1.6; }
+#runner-settings button { margin-top:.75rem; }

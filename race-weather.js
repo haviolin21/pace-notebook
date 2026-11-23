@@ -1,24 +1,59 @@
-const resultSets=[
-  {name:'10km',first:40,shares:[[1.01,14.16,36.49,29.45,13.90,4.01,.74,.12,.07,.05],[.97,12.69,23.07,12.66,5.16,1.38,.27,.07,.03,.04],[.04,1.47,13.42,16.80,8.74,2.63,.47,.05,.04,.01]]},
-  {name:'하프',first:80,shares:[[.39,4.65,11.46,19.34,22.84,16.56,12.53,7.44,3.11,1.22,.37,.08,.01],[.38,4.58,10.97,16.97,17.73,10.97,7.33,4.13,1.85,.73,.19,.07,.01],[.01,.07,.49,2.36,5.10,5.59,5.21,3.31,1.26,.49,.19,.01,.01]]}
+const raceDistributions = [
+  {"name": "2026 MBN 서울마라톤", "url": "https://runpick.co.kr/races/Aa", "courses": {"10km": [[0, 40, 1.01, 0.97, 0.04], [40, 50, 14.16, 12.69, 1.47], [50, 60, 36.49, 23.07, 13.42], [60, 70, 29.45, 12.66, 16.8], [70, 80, 13.9, 5.16, 8.74], [80, 90, 4.01, 1.38, 2.63], [90, 100, 0.74, 0.27, 0.47], [100, 110, 0.12, 0.07, 0.05], [110, 120, 0.07, 0.03, 0.04], [120, null, 0.05, 0.04, 0.01]], "하프": [[0, 80, 0.39, 0.38, 0.01], [80, 90, 4.65, 4.58, 0.07], [90, 100, 11.46, 10.97, 0.49], [100, 110, 19.34, 16.97, 2.36], [110, 120, 22.84, 17.73, 5.1], [120, 130, 16.56, 10.97, 5.59], [130, 140, 12.53, 7.33, 5.21], [140, 150, 7.44, 4.13, 3.31], [150, 160, 3.11, 1.85, 1.26], [160, 170, 1.22, 0.73, 0.49], [170, 180, 0.37, 0.19, 0.19], [180, 190, 0.08, 0.07, 0.01], [190, null, 0.01, 0.01, 0.01]]}},
+  {"name": "2026 김대중마라톤대회", "url": "https://runpick.co.kr/races/e0086cf237842e98bf65858f", "courses": {"5km": [[0, 20, 0.87, 0.87, 0.0], [20, 30, 12.47, 8.78, 3.69], [30, 40, 40.55, 18.16, 22.39], [40, 50, 32.1, 12.06, 20.04], [50, 60, 10.99, 4.76, 6.23], [60, 70, 2.55, 0.8, 1.74], [70, 80, 0.47, 0.13, 0.34]], "10km": [[0, 40, 3.25, 3.19, 0.07], [40, 50, 21.07, 18.4, 2.67], [50, 60, 40.83, 29.39, 11.44], [60, 70, 20.94, 10.66, 10.27], [70, 80, 9.82, 5.01, 4.81], [80, 90, 3.64, 1.37, 2.28], [90, null, 0.46, 0.13, 0.33]], "하프": [[0, 80, 1.4, 1.4, 0.0], [80, 90, 3.44, 3.44, 0.0], [90, 100, 11.73, 10.71, 1.02], [100, 110, 18.88, 17.73, 1.15], [110, 120, 25.0, 22.07, 2.93], [120, 130, 15.05, 12.76, 2.3], [130, 140, 11.48, 9.06, 2.42], [140, 150, 5.87, 4.85, 1.02], [150, 160, 3.06, 2.42, 0.64], [160, 170, 3.19, 2.17, 1.02], [170, 180, 0.89, 0.64, 0.26]]}},
+  {"name": "2026 무주반딧불평화마라톤", "url": "https://runpick.co.kr/races/b5e27566e04d1ed6726a46ed", "courses": {"5km": [[0, 20, 2.92, 2.92, 0.0], [20, 30, 17.3, 12.58, 4.72], [30, 40, 37.08, 16.63, 20.45], [40, 50, 29.21, 13.03, 16.18], [50, 60, 8.76, 3.82, 4.94], [60, 70, 3.6, 1.57, 2.02], [70, null, 1.12, 0.45, 0.67]], "하프": [[0, 80, 1.3, 1.3, 0.0], [80, 90, 5.86, 5.86, 0.0], [90, 100, 12.38, 11.07, 1.3], [100, 110, 22.15, 21.5, 0.65], [110, 120, 22.48, 19.87, 2.61], [120, 130, 18.24, 12.38, 5.86], [130, 140, 9.77, 7.17, 2.61], [140, 150, 5.21, 3.26, 1.95], [150, 160, 2.61, 1.3, 1.3]]}},
+  {"name": "2026 자이스 스마일 레이스", "url": "https://runpick.co.kr/races/1bc5afb2df258cf53147248e", "courses": {"5km": [[0, 20, 0.25, 0.25, 0.0], [20, 30, 10.74, 7.72, 3.02], [30, 40, 49.92, 21.14, 28.78], [40, 50, 29.53, 10.74, 18.79], [50, 60, 6.71, 2.1, 4.61], [60, 70, 2.68, 1.01, 1.68], [70, null, 0.17, 0.0, 0.17]], "10km": [[0, 40, 0.89, 0.89, 0.0], [40, 50, 14.91, 13.98, 0.93], [50, 60, 41.72, 34.21, 7.52], [60, 70, 27.45, 16.93, 10.52], [70, 80, 11.78, 6.0, 5.79], [80, 90, 3.21, 1.77, 1.44], [90, null, 0.04, 0.0, 0.04]]}},
+  {"name": "2026 통큰런", "url": "https://runpick.co.kr/races/bf956b3fa2c0ed310922a115", "courses": {"3km": [[0, 20, 3.49, 3.49, 0.0], [20, 30, 40.95, 40.95, 0.0], [30, 40, 36.19, 36.19, 0.0], [40, 50, 16.83, 16.83, 0.0], [50, 60, 2.54, 2.54, 0.0]], "5km": [[0, 30, 13.32, 13.32, 0.0], [30, 40, 52.73, 52.46, 0.27], [40, 50, 27.16, 26.9, 0.27], [50, 60, 5.33, 5.33, 0.0], [60, 70, 1.46, 1.46, 0.0]], "10km": [[0, 40, 0.22, 0.22, 0.0], [40, 50, 9.25, 9.25, 0.0], [50, 60, 33.22, 33.11, 0.11], [60, 70, 31.66, 31.55, 0.11], [70, 80, 16.5, 16.5, 0.0], [80, 90, 7.92, 7.92, 0.0], [90, 100, 1.23, 1.23, 0.0]]}},
+  {"name": "AR SPEED TRACK 2027", "url": "https://runpick.co.kr/races/smartchip-202650000353", "courses": {"10km": [[0, 40, 71.97, 67.42, 4.55], [40, 50, 28.03, 4.55, 23.48]]}}
 ];
 function ranking(){
-  tool('2026 MBN 서울마라톤','<div class="layout"><label>종목<select id="rank-km"><option>10km</option><option>하프</option></select></label><label>완주자 그룹<select id="group"><option>전체</option><option>남성</option><option>여성</option></select></label></div><label>내 기록 (분:초 또는 시:분:초)<input id="rank-time" inputmode="numeric" enterkeyhint="done" maxlength="12" placeholder="예: 4859" aria-describedby="rank-feedback"></label><small class="time-feedback" id="rank-feedback" role="status"></small><div id="rank-result"></div><small>공개된 10분 단위 분포로 계산한 상위 비율 범위입니다. 성별 선택 시 해당 그룹 안에서 다시 계산합니다. 반올림에 따라 경계가 달라질 수 있습니다. <a href="https://runpick.co.kr/races/Aa">계측 통계 보기</a></small>');
-  function update(sec){
-    const data=resultSets[$('#rank-km').selectedIndex],shares=data.shares[$('#group').selectedIndex];
-    const total=shares.reduce((a,b)=>a+b,0);let sum=0,summary='';
-    const table=shares.map((share,i)=>{
-      const low=i?data.first+(i-1)*10:0,high=i===shares.length-1?Infinity:data.first+i*10;
-      const start=sum;sum+=share;const band=(start*100/total).toFixed(1)+'~'+(sum*100/total).toFixed(1)+'%';
-      const selected=sec>0&&sec>=low*60&&sec<high*60;
-      if(selected)summary=hero('내 기록의 상위 비율 범위',band);
-      return '<div class="row '+(selected?'selected':'')+'"><span>'+(high===Infinity?low+'분 이상':(low?low+'~':'')+high+'분 미만')+'</span><b>'+band+'</b></div>'
-    }).join('');
-    $('#rank-result').innerHTML=(summary||'<p>기록을 넣으면 해당 구간을 표시합니다.</p>')+'<h3>기록별 티어 표</h3>'+table;
+  tool('내 완주 기록 비교', `
+    <label>대회<select id="rank-event"></select></label>
+    <div class="layout"><label>종목<select id="rank-km"></select></label>
+    <label>비교 그룹<select id="group"><option>전체</option><option>남성</option><option>여성</option></select></label></div>
+    <label>내 기록 (분:초 또는 시:분:초)<input id="rank-time" inputmode="numeric" maxlength="12" placeholder="예: 4859" aria-describedby="rank-feedback"></label>
+    <small id="rank-feedback" role="status"></small><div id="rank-result"></div>
+    <small>선택한 그룹의 완주 시간 분포를 기준으로 계산합니다. 연령별 집계는 제공되지 않습니다. <a id="rank-source">대회별 계측 통계</a></small>`);
+  const race = $('#rank-event'), course = $('#rank-km'), group = $('#group');
+  raceDistributions.forEach((item,i)=>race.add(new Option(item.name,i)));
+  function setCourses(){
+    const chosen = raceDistributions[race.selectedIndex], previous = course.value;
+    course.replaceChildren(...Object.keys(chosen.courses).map(name=>new Option(name,name)));
+    if(chosen.courses[previous]) course.value = previous;
+    $('#rank-source').href = chosen.url;
   }
+  function update(seconds){
+    const rows = raceDistributions[race.selectedIndex].courses[course.value];
+    const column = 2 + group.selectedIndex;
+    const total = rows.reduce((sum,r)=>sum+r[column],0);
+    if(!total){ $('#rank-result').textContent = '이 그룹은 집계된 기록이 없습니다.'; return; }
+    let cumulative = 0, summary = seconds ? '공개된 기록 구간 밖입니다.' : '기록을 입력하면 내 구간이 표시됩니다.';
+    const table = rows.map(r=>{
+      const [low,high] = r;
+      const start = cumulative;
+      cumulative += r[column];
+      const band = (100*start/total).toFixed(1)+'–'+(100*cumulative/total).toFixed(1)+'%';
+      const selected = seconds>0 && seconds>=low*60 && (high===null || seconds<high*60);
+      if(selected) summary = hero('내 기록의 상위 비율 범위',band);
+      const label = high===null ? low+'분 이상' : (low ? low+'분 이상 · ' : '')+high+'분 미만';
+      return '<div class="row '+(selected?'selected':'')+'"><span>'+label+'</span><b>'+band+'</b></div>';
+    }).join('');
+    $('#rank-result').innerHTML = summary+'<h3>기록별 티어 표</h3>'+table;
+  }
+  const useProfile = profile => { group.selectedIndex = profile.sex==='female'?2:profile.sex==='male'?1:0; };
+  setCourses(); useProfile(coachProfile());
   const refresh = mountDurationInput($('#rank-time'),$('#rank-feedback'),update);
-  $('#rank-km').onchange=refresh;$('#group').onchange=refresh;
+  race.onchange = ()=>{setCourses();refresh();};
+  group.onchange = course.onchange = refresh;
+  runnerSettings(profile=>{useProfile(profile);refresh();});
+  const settings = $('#runner-settings').closest('section');
+  const disclosure = document.createElement('details');
+  const label = document.createElement('summary');
+  label.textContent = '내 나이·성별 입력';
+  disclosure.append(label,settings);
+  $('#rank-time').closest('label').before(disclosure);
 }
+
 function races(){
   tool('국내 대회','<label>종목<select id="race-filter"><option>전체</option><option>10km</option><option>하프</option><option>풀코스</option></select></label><div id="events"></div><small>일정 확인일 2026.11.23 · 접수 변경 사항은 대회 공식 안내에서 확인하세요.</small>');
   const events=[['2027 서울마라톤','2027.03.21','서울 · 광화문광장(풀), 잠실종합운동장(10km) 예정',['10km','풀코스'],'https://seoul-marathon.com/96','<a href="https://seoul-marathon.com/90">접수 일정</a>'],['2026 MBN 서울마라톤','2026.11.15','서울 · 광화문광장 출발',['10km','하프'],'https://mbn-seoulmarathon.com','<a href="#rank">완주 기록 비교</a>']];

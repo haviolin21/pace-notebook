@@ -284,3 +284,25 @@ function readWorkoutMetrics(raw){
   const elapsed = clock ? seconds(clock) : null;
   return {km,elapsed,pace:pace || (elapsed && km ? Math.round(elapsed/km) : null)};
 }
+
+function runnerSettings(onSave){
+  tool('내 러너 정보', `
+    <form id="runner-settings"><div class="layout">
+      <label>만 나이<input name="age" type="number" min="1" max="120" step="1" inputmode="numeric"></label>
+      <label>성별<select name="sex"><option value="">선택 안 함</option><option value="male">남성</option><option value="female">여성</option></select></label>
+      <label>체중 (kg)<input name="weight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 70"></label>
+    </div><button type="submit">내 정보 저장</button><small role="status"></small></form>
+    <small>이 브라우저에 저장합니다. 나이는 참고 심박에, 성별은 참고 심박과 대회 비교 그룹에, 체중은 칼로리 계산에 반영됩니다.</small>`);
+  const form = $('#runner-settings'), fields = ['age','sex','weight'];
+  const saved = coachProfile();
+  fields.forEach(key=>form.elements[key].value=saved[key] || '');
+  form.onsubmit = event=>{
+    event.preventDefault();
+    const profile = coachProfile();
+    fields.forEach(key=>profile[key]=form.elements[key].value);
+    let message = '내 정보를 저장했습니다.';
+    try{localStorage.setItem(coachProfileKey,JSON.stringify(profile));}catch{message='이번 화면에만 반영했습니다.';}
+    form.querySelector('[role=status]').textContent = message+' '+profileSummary(profile);
+    onSave(profile);
+  };
+}
