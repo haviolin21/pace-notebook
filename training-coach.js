@@ -55,7 +55,7 @@ function firstRun(profile){
   const pulse = referencePulse(profile);
   let detail = '대화가 이어지는 속도로 시작하세요. 숨이 차면 걷는 시간을 늘리세요.';
   if(pulse){
-    detail += ' 중강도 참고 심박은 약 '+pulse+'입니다. 개인차가 있어 숫자를 맞추려고 속도를 올릴 필요는 없습니다.';
+    detail += ' 참고 심박은 개인차가 있으니 숫자를 맞추려고 속도를 올릴 필요는 없습니다.';
   }
   if(age>=65)detail += ' 걷기가 편해진 뒤 짧은 달리기를 더하세요.';
   return {title:'1분 달리기 · 90초 걷기', detail};
@@ -146,7 +146,12 @@ function mountRecordEditor(onApply,onCancel){
   return {form,message:()=>saveStatus.textContent,open(){resetDraft();form.hidden=false;clock.focus()}};
 }
 function profileFields(){
-  return '<a href="#profile">내 정보에서 참고 심박 설정</a>';
+  const profile = coachProfile();
+  const age = Number(profile.age);
+  if(!Number.isInteger(age) || age<=0) return '<p><a href="#profile">내 정보에서 나이 입력</a></p>';
+  const pulse = referencePulse(profile);
+  const summary = pulse ? '중강도 참고 심박 약 '+pulse : '참고 심박 추정 범위 밖';
+  return '<p><strong>'+summary+'</strong><br>만 '+age+'세 기준 · <a href="#profile">내 정보 수정</a></p>';
 }
 function training(){
   const profile = coachProfile();
@@ -273,6 +278,7 @@ function runnerSettings(){
   const form = $('#runner-settings'), fields = ['age','sex','height','weight'];
   const saved = coachProfile();
   fields.forEach(key=>form.elements[key].value=saved[key] || '');
+  if(saved.age) form.querySelector('[role=status]').textContent = profileSummary(saved);
   form.onsubmit = event=>{
     event.preventDefault();
     const profile = coachProfile(), previous = profileSummary(profile);
