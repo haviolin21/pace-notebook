@@ -53,12 +53,12 @@ function proposeWeek(days,goal,unit,amount,frequency){
   const sum=weights.reduce((a,b)=>a+b,0);
   let allocated=0,weight=0;
   return days.map((day,i)=>{
-    if(unit==='min')return {day,type:types[i],minutes:amount};
+    if(unit==='min')return {day,type:types[i],goal,minutes:amount};
     weight+=weights[i];
     const end=Math.round(amount*10*weight/sum);
     const km=(end-allocated)/10;
     allocated=end;
-    return {day,type:types[i],km};
+    return {day,type:types[i],goal,km};
   });
 }
 function sessionGuidance(s,paces){
@@ -85,6 +85,50 @@ function sessionGuidance(s,paces){
     parts.push('예상 약 '+Math.max(1,Math.round(amount*sec/60))+'분');
   }
   return parts.join('<br>');
+}
+function nextScheduledRun(today){
+  let book;
+  try{book=readPlanBook();}catch{return null;}
+  for(let i=0;i<14;i++){
+    const date=shiftPlanDate(today,i),day=(new Date(date+'T00:00:00Z').getUTCDay()+6)%7;
+    const session=effectivePlan(book,planMonday(date))?.find(s=>s.day===day);
+    if(session && !runOn(date))return {date,session};
+  }
+  return null;
+}
+function planOutcome(session,run){
+  if(!run)return '기록 없음';
+  if(!session)return '계획 외 러닝';
+  const actual=run.type==='첫 러닝'?'걷기·달리기':run.type;
+  if(run.different || actual!==session.type)return '다르게 달림';
+  if(session.minutes && !run.elapsed)return '시간 미입력';
+  const matches=session.km!=null?Math.abs(session.km-run.km)<0.005:Math.round(run.elapsed/60)===Number(session.minutes);
+  return matches?'계획대로 완료':'다르게 달림';
+}
+function mountMove(host,date,session,after){
+  if(!session || runOn(date))return;
+  const today=planToday(),week=planMonday(date);
+  const box=document.createElement('details');
+  box.innerHTML='<summary>다른 날로 이동</summary><form><label>옮길 날짜<input name="date" type="date" required></label><button type="submit">이날로 이동</button><small role="status"></small></form>';
+  host.append(box);
+  const form=box.querySelector('form'),input=form.elements.date,msg=box.querySelector('small');
+  input.min=today;
+  form.onsubmit=e=>{
+    e.preventDefault();
+    const dest=input.value,toWeek=planMonday(dest),day=(new Date(dest+'T00:00:00Z').getUTCDay()+6)%7;
+    try{
+      const book=readPlanBook(),from=effectivePlan(book,week)||[],to=effectivePlan(book,toWeek)||[];
+      if(runOn(date)||!from.some(s=>JSON.stringify(s)===JSON.stringify(session))){msg.textContent='원래 일정이 변경되었습니다. 다시 열어 주세요.';return;}
+      if(dest===date||runOn(dest)||to.some(s=>s.day===day)){msg.textContent='훈련이나 기록이 없는 다른 날짜를 골라 주세요.';return;}
+      book.weeks[week]=from.filter(s=>s.day!==session.day);
+      book.weeks[toWeek]=[...(week===toWeek?book.weeks[week]:to),{...session,day}].sort((a,b)=>a.day-b.day);
+      localStorage.setItem(weekPlanKey,JSON.stringify(book));after(dest);
+    }catch{msg.textContent='일정을 저장하지 못했습니다.';}
+  };
+}
+function planReason(s){
+  const reason={begin:'첫 러닝에 익숙해지기',regular:'꾸준히 달리기',improve:'기록 향상'};
+  return [reason[s.goal],dayPurpose[s.type]].filter(Boolean).join(' · ');
 }
 function mountPlanner(){
   const base=$('#planner');
@@ -135,30 +179,40 @@ function mountPlanner(){
     const sessions=editing?draft:saved;
     const dated=planDays.map((_,i)=>shiftPlanDate(week,i));
     const done=dated.map(d=>runOn(d));
-    const completed=sessions.filter(s=>done[s.day]).length;
     const next=[...sessions].sort(order).find(s=>dated[s.day]>=today && !done[s.day]);
+    const upcoming=editing?null:nextScheduledRun(today);
     const mins=sessions.reduce((a,s)=>a+Number(s.minutes||0),0);
     const kms=sessions.reduce((a,s)=>a+Number(s.km||0),0);
     const total=[kms?Number(kms.toFixed(1))+'km':'',mins?Number(mins.toFixed(1))+'분':''].filter(Boolean).join(' + ');
-    base.innerHTML=`<section class="runner-tool"><p class="plan-date">${dateLabel(week)}–${dateLabel(dated[6])}</p>
-      <h3>${editing?(saved===null?'내 계획 초안':'이번 주 일정 수정'):'이번 주 훈련'}</h3>
-      <p class="plan-total">주 ${sessions.length}회${total?' · '+total:''}</p>
-      ${editing?'':'<p>계획한 '+sessions.length+'회 중 '+completed+'회 완료 · '+(next?'다음 훈련 '+planDays[next.day]+'요일 '+next.type:'남은 예정 훈련 없음')+'</p>'}
+    base.innerHTML=`<section class="runner-tool">
+      ${upcoming?`<header class="next-session"><small>다음 훈련 · ${dateLabel(upcoming.date)}</small><p>${planDays[upcoming.session.day]}요일</p><h2>${upcoming.session.type} ${sessionDose(upcoming.session)}</h2><div id="next-move"></div></header>`:''}
+      <div class="week-heading"><h3>${editing?(saved===null?'내 계획 초안':'이번 주 일정 수정'):'이번 주 일정'}</h3>${editing?'':'<button id="edit-plan">훈련 수정</button>'}</div>
+      <p class="plan-date">${dateLabel(week)}–${dateLabel(dated[6])} · 주 ${sessions.length}회${total?' · '+total:''}</p>
       <ol class="week-list"></ol>
       ${editing?`<label>저장 범위<select id="plan-scope"><option value="week">이번 주만 적용</option><option value="routine">이번 주와 기본 루틴에 적용</option></select></label>
       <small>기본 루틴은 다음 주부터 같은 요일에 반복됩니다.</small>
       <div class="actions"><button class="primary" id="commit-plan">${saved===null?'이 계획으로 시작':'변경 저장'}</button><button id="cancel-plan">${saved===null?'조건 다시 선택':'취소'}</button></div>`:
-      '<div class="actions"><button class="primary" id="edit-plan">이번 주 일정 수정</button><button id="restart-plan">추천 다시 받기</button></div>'}
+      '<div class="actions"><button id="restart-plan">추천 다시 받기</button></div>'}
       <p role="status" id="week-note"></p></section>`;
     $('#week-note').textContent=note;
+    function moved(dest){book=readPlanBook();saved=effectivePlan(book,week);note=dest+'로 훈련을 옮겼습니다.';draw();}
+    if(upcoming)mountMove($('#next-move'),upcoming.date,upcoming.session,moved);
     planDays.forEach((name,day)=>{
       const session=sessions.find(s=>s.day===day), li=document.createElement('li');
       const title=session?session.type+' · '+sessionDose(session):'휴식';
-      const badge=done[day]?'완료':dated[day]===today?'오늘':'';
-      li.innerHTML=`<details><summary class="plan-day-summary"><span>${name} <small>${dateLabel(dated[day])}</small></span><span><b>${title}</b>${session?'<small>'+dayPurpose[session.type]+'</small>':''}</span><span>${editing?(session?'편집':'추가'):badge}</span></summary><div class="plan-day-body"></div></details>`;
+      const badge=done[day]?planOutcome(session,done[day]):dated[day]<today && session?'기록 없음':dated[day]===today?'오늘':'';
+      li.innerHTML=`<details><summary class="plan-day-summary"><span>${name}요일</span><span><b>${title}</b></span><span>${editing?(session?'편집':'추가'):(badge || (session?'예정':''))}</span></summary><div class="plan-day-body"></div></details>`;
       const body=li.querySelector('.plan-day-body');
-      if(session){const p=document.createElement('p');p.innerHTML=sessionGuidance(session,paces);body.append(p);}
-      if(done[day]){const p=document.createElement('p');p.textContent='실제 기록 · '+done[day].type+' '+done[day].km+'km';body.append(p);}
+      if(session){const p=document.createElement('p');p.innerHTML=planReason(session)+'<br>'+sessionGuidance(session,paces);body.append(p);}
+      if(done[day]){
+        const actual=document.createElement('small');
+        actual.className='actual-result';
+        actual.textContent=(session?'예정 '+sessionDose(session)+' · ':'')+'실제 '+kmText(done[day].km)+'km'+(done[day].elapsed?' · '+time(done[day].elapsed):'');
+        body.append(actual);
+        const p=document.createElement('p');p.textContent='실제 훈련 · '+done[day].type;body.append(p);
+      }
+      if(!editing && session && !done[day] && dated[day]>=today)quickEditor(body,session);
+      if(!editing && session && !done[day] && session!==next)mountMove(body,dated[day],session,moved);
       if(editing) dayEditor(body,day,session);
       else if(!session && !done[day])body.textContent='예정된 훈련이 없습니다.';
       $('.week-list').append(li);
@@ -179,6 +233,32 @@ function mountPlanner(){
         book=latest;saved=effectivePlan(book,week);editing=false;note='계획을 저장했습니다.';draw();
       }catch{$('#week-note').textContent='저장하지 못했습니다. 변경한 초안은 이 화면에 남아 있습니다.';}
     };
+  }
+  function quickEditor(body,session){
+    const form=document.createElement('form');
+    form.className='day-editor';
+    form.innerHTML='<label>훈련 종류<select name="type"></select></label><div class="layout"><label>운동량<input type="number" min="0.1" step="0.1" inputmode="decimal" name="amount" required></label><label>단위<select name="unit"><option value="minutes">분</option><option value="km">km</option></select></label></div><label><input type="checkbox" name="repeat"> 매주 '+planDays[session.day]+'요일에도 적용</label><button type="submit">이 훈련 저장</button><small role="status"></small>';
+    const f=form.elements;
+    runTypes.forEach(type=>f.type.add(new Option(type,type)));
+    f.type.value=session.type;f.unit.value=session.km!=null?'km':'minutes';f.amount.value=session[f.unit.value];
+    form.onsubmit=e=>{
+      e.preventDefault();
+      const updated={...session,type:f.type.value};
+      delete updated.minutes;delete updated.km;
+      updated[f.unit.value]=f.amount.valueAsNumber;
+      const replaceDay=list=>[...list.filter(s=>s.day!==session.day),updated].sort(order);
+      try{
+        const latest=readPlanBook(),current=effectivePlan(latest,week)||[];
+        if(JSON.stringify(current.find(s=>s.day===session.day))!==JSON.stringify(session)){
+          form.querySelector('small').textContent='일정이 변경됐습니다. 화면을 다시 열어 주세요.';return;
+        }
+        latest.weeks[week]=replaceDay(current);
+        if(f.repeat.checked){latest.routine=replaceDay(latest.routine);latest.hasRoutine=true;}
+        localStorage.setItem(weekPlanKey,JSON.stringify(latest));
+        book=latest;saved=latest.weeks[week];note=planDays[session.day]+'요일 '+updated.type+' '+sessionDose(updated)+' 저장했습니다.';draw();
+      }catch{form.querySelector('small').textContent='저장하지 못했습니다. 다시 시도해 주세요.';}
+    };
+    body.prepend(form);
   }
   function dayEditor(body,day,session){
     const form=document.createElement('form');form.className='day-editor';
@@ -201,7 +281,7 @@ function mountPlanner(){
       const target=Number(f.day.value),other=draft.find(s=>s.day===target && target!==day);
       if(other)other.day=day;
       draft=draft.filter(s=>s!==session);
-      draft.push({day:target,type:f.type.value,[f.unit.value==='min'?'minutes':'km']:f.amount.valueAsNumber});
+      draft.push({day:target,type:f.type.value,goal:session?.goal||goal,[f.unit.value==='min'?'minutes':'km']:f.amount.valueAsNumber});
       note='초안에 반영했습니다. 계획을 저장하면 적용됩니다.';draw();
     };
     if(session)form.querySelector('[data-remove]').onclick=()=>{draft=draft.filter(s=>s!==session);note='휴식으로 변경했습니다.';draw();};

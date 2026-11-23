@@ -258,6 +258,7 @@ function display(){
   subnav.replaceChildren(...secondaryLinks);
   subnav.hidden = group.pages.length < 2;
   $('#screen').innerHTML = '<h1>'+page[1]+'</h1>';
+  if(page[0]==='plan') $('#screen h1').className='sr-heading';
   page[2]();
 }
 window.addEventListener('hashchange', () => {

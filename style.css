@@ -308,3 +308,49 @@ summary { font-weight: 700; }
 @media (max-width:600px) {
   #past-rows .layout { grid-template-columns:minmax(0,1fr); gap:0; }
 }
+.month-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#month-total { display:block; font-size:1.75rem; margin-top:.5rem; }
+#month-compare,#other-totals { color:var(--muted); }
+#month-bars,.month-grid { display:grid; gap:3px; margin:14px 0; }
+#month-bars { grid-template-columns:repeat(6,minmax(0,1fr)); align-items:end; }
+#screen #month-bars button { display:grid; grid-template-rows:1.25rem 34px 1.25rem; justify-items:center; align-items:end; background:transparent; color:var(--ink); padding:4px 0; border:1px solid transparent; }
+#screen #month-bars [aria-pressed=true] { border-color:var(--ink); }
+#month-bars i { width:50%; height:var(--height); background:#54775e; border-radius:3px 3px 0 0; }
+.month-grid { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.month-grid>small { text-align:center; padding-block:5px; }
+#screen .month-grid button { min-width:0; padding:4px 0; display:flex; flex-direction:column; align-items:center; background:transparent; border:1px solid var(--line); border-radius:7px; }
+#screen .month-grid .logged { background:var(--accent); }
+#screen .month-grid [aria-current=date] { border:2px solid var(--ink); }
+.month-grid button small,#month-bars small { font-size:.75rem; overflow-wrap:anywhere; }
+#day-dialog { width:min(90vw,360px); border:0; border-radius:16px; padding:20px; color:var(--ink); }
+#day-dialog::backdrop { background:#12241bb3; }
+#calendar-edit input[type=checkbox],#run-log input[type=checkbox] { display:inline; width:auto; min-height:0; }
+.next-session { padding:14px; border-radius:12px; background:var(--accent); margin:12px 0; }
+#last-run:not(:empty), #after-run:not(:empty) { display:block; margin-bottom:.4rem; }
+#months { scroll-margin-top:5rem; }
+#month-bars small { line-height:1.1; }
+#screen #jump-log { background:#edf3e4; color:#173c2c; border-color:#aac39d; }
+.finished-today :is(.session-heading,#last-run,#today-pace,#pick-session,#today-move,#session-purpose,#today-weather-line,#today-plan,#today-calc) { display:none!important; }
+#finished-title { margin:0 0 .5rem; }
+.day-editor input[type=checkbox] { width:auto; min-height:0; display:inline; }
+
+.sr-heading { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+#planner>.runner-tool { border:0; padding-top:0; }
+.next-session { background:#193e30; color:#fffdf2; padding:clamp(20px,4vw,36px); margin:0 0 24px; border-radius:18px; }
+.next-session small { color:#d3e1cb; }
+.next-session p { margin:12px 0 3px; font-weight:650; }
+.next-session h2 { font-size:clamp(1.75rem,6vw,2.8rem); margin:0 0 12px; line-height:1.15; }
+.next-session summary { color:#e3efd6; font-size:.875rem; cursor:pointer; }
+.week-heading { display:flex; align-items:center; justify-content:space-between; }
+.week-heading h3 { margin:0; }
+#screen #edit-plan { background:transparent; color:var(--ink); font-size:.875rem; }
+#screen .month-grid button { border:1px solid transparent; min-height:46px; justify-content:center; color:var(--ink); }
+#screen .month-grid .logged { background:#e0edda; color:#193e30; }
+#screen .month-grid .logged small { color:#294f34; font-weight:700; }
+#screen .month-grid [aria-current=date] { border-color:#42674f; }
+#run-metrics:not([hidden]) { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:18px 0; }
+#run-metrics strong { display:block; font-size:clamp(1.05rem,4vw,1.6rem); font-variant-numeric:tabular-nums; }
+#screen .finished-today #open-run { position:absolute; top:16px; right:16px; font-size:.875rem; padding:4px 10px; background:transparent; color:#fffdf2; border:1px solid #9aaf9a; }
+#finished-title { padding-right:5rem; }
+#today-overview:not(.finished-today) :is(#last-run,#after-run) { display:none; }
+.today-card .today-intro { color:#d3e1cb; font-size:.875rem; margin:16px 0 0; }

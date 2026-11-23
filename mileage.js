@@ -18,57 +18,110 @@ function periodStats(runs,start,end){
   return {count:list.length,km:list.reduce((s,r)=>s+r.km,0),longest:list.reduce((v,r)=>Math.max(v,r.km),0)};
 }
 function monthStart(day){return day.slice(0,7)+'-01';}
+function shiftMonth(first,offset){
+  const date=new Date(first+'T00:00:00Z');
+  date.setUTCMonth(date.getUTCMonth()+offset,1);
+  return date.toISOString().slice(0,10);
+}
 function mountMileage(today,onChange){
-  const yesterday=shiftPlanDate(today,-1);
-  tool('내 마일리지',`<div class="mileage-period" role="group" aria-label="집계 기간"></div>
-    <div class="mileage-number" aria-live="polite"></div><p id="mileage-summary"></p>
-    <ol class="week-track"></ol><p id="run-receipt"></p>
-    <details id="past-runs"><summary>지난 러닝 추가</summary>
-      <form id="past-form"><div id="past-rows"></div>
-      <div class="actions"><button type="button" id="past-add">다른 날짜 추가</button><button type="submit">기록 저장</button></div></form>
-      </details><p role="status" id="past-status"></p><h4>날짜별 러닝 기록</h4><div id="past-list"></div><button type="button" id="past-more" hidden>이전 기록 더 보기</button>`);
-  const form=$('#past-form'),period=$('.mileage-period');
-  let current='월간',visibleCount=7;
-  $('#past-more').onclick=()=>{visibleCount+=14;render();};
+  const yesterday=shiftPlanDate(today,-1),thisMonth=monthStart(today);
+  let month=thisMonth,selected='';
+  tool('내 마일리지',`<div id="months"><div class="month-heading"><button type="button" id="prev-month" aria-label="이전 달">‹</button><h4 id="month-label"></h4><button type="button" id="next-month" aria-label="다음 달">›</button></div>
+    <strong id="month-total"></strong><p id="month-compare"></p><div id="month-bars" aria-label="월별 거리 비교"></div>
+    <div class="month-grid" id="month-days"></div><small id="other-totals"></small></div><p id="run-receipt"></p>
+    <details id="past-runs"><summary>여러 날짜 입력</summary><form id="past-form"><div id="past-rows"></div>
+    <div class="actions"><button type="button" id="past-add">다른 날짜 추가</button><button type="submit">기록 저장</button></div></form></details>
+    <p role="status" id="past-status"></p>
+    <dialog id="day-dialog" aria-labelledby="dialog-date"><form id="calendar-edit"><h3 id="dialog-date"></h3><label id="past-date-label" hidden>러닝 날짜<input type="date" name="runDate" required></label>
+    <label>달린 거리 (km)<input type="number" name="km" min=".01" step=".01" inputmode="decimal" required></label>
+    <label><input type="checkbox" name="different"> 다르게 달렸어요</label><label id="calendar-type" hidden>실제 훈련<select name="type"></select></label>
+    <div class="actions"><button type="submit">저장</button><button id="calendar-cancel" type="button">취소</button></div><p role="status"></p></form></dialog>`);
+  const form=$('#past-form'),edit=$('#calendar-edit'),dialog=$('#day-dialog');
+  runTypes.forEach(t=>edit.elements.type.add(new Option(t,t)));
+  edit.elements.different.onchange=()=>{$('#calendar-type').hidden=!edit.elements.different.checked;};
   function updatedRun(old,km){
     return {...old,type:old?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
   }
-  function render(){
-    const runs=loggedRuns(today),week=periodStats(runs,planMonday(today),today);
-    const start=current==='주간'?planMonday(today):current==='올해'?today.slice(0,4)+'-01-01':monthStart(today);
-    const stats=periodStats(runs,start,today);
-    $('.mileage-number').textContent=(current==='월간'?'이번 달':current==='주간'?'이번 주':'올해')+' '+kmText(stats.km)+' km';
-    $('#mileage-summary').textContent=stats.count+'회 러닝 · 이번 주 '+kmText(week.km)+' km';
-    for(const b of period.children)b.setAttribute('aria-pressed',String(b.textContent===current));
-    const list=$('#past-list');list.replaceChildren();
-    const past=runs.filter(r=>r.date<today);
-    $('#past-more').hidden=past.length<=visibleCount;
-    if(!past.length)list.textContent='아직 저장한 지난 러닝이 없습니다.';
-    for(const run of past.slice(0,visibleCount)){
-      const item=document.createElement('details');
-      item.innerHTML='<summary><time></time><strong></strong><span>수정</span></summary><form><label>달린 거리 (km)<input type="number" name="km" min="0.01" step="0.01" inputmode="decimal" required></label><div class="actions"><button type="submit">변경 저장</button><button type="button">취소</button></div></form>';
-      item.querySelector('time').textContent=run.date;
-      item.querySelector('strong').textContent=kmText(run.km)+' km';
-      const editor=item.querySelector('form'),field=editor.elements.km;
-      field.value=run.km;
-      item.ontoggle=()=>{if(!item.open)field.value=run.km;};
-      editor.querySelector('[type=button]').onclick=()=>{item.open=false;item.querySelector('summary').focus();};
-      editor.onsubmit=e=>{
-        e.preventDefault();
-        const km=field.valueAsNumber;
-        try{localStorage.setItem(journalPrefix+run.date,JSON.stringify(updatedRun(runOn(run.date),km)));}
-        catch{status.textContent='거리를 저장하지 못했습니다.';return;}
-        for(const row of rows.children){
-          if(row.elements.date.value===run.date && row.elements.km.value===row.dataset.original)row.elements.date.onchange();
-        }
-        onChange();
-        status.textContent=run.date+' · '+kmText(km)+' km로 수정했습니다.';
-      };
-      list.append(item);
-    }
+  const dateTitle=date=>Number(date.slice(0,4))+'년 '+Number(date.slice(5,7))+'월';
+  function loadDate(date){
+    selected=date;
+    const run=runOn(date);
+    $('#dialog-date').textContent=date+' · '+(run?'기록 수정':'러닝 추가');
+    edit.elements.km.value=run?.km??'';
+    edit.elements.different.checked=!!run?.different;
+    edit.elements.type.value=runTypes.includes(run?.type)?run.type:'자유주';
+    edit.elements.different.onchange();
+    edit.querySelector('[role=status]').textContent='';
   }
-  for(const name of ['주간','월간','올해']){
-    const b=document.createElement('button');b.textContent=name;b.onclick=()=>{current=name;render();};period.append(b);
+  function openDate(date,quick=false){
+    $('#past-date-label').hidden=!quick;
+    edit.elements.runDate.disabled=!quick;
+    edit.elements.runDate.max=yesterday;
+    edit.elements.runDate.value=date;
+    loadDate(date);
+    dialog.showModal();edit.elements.km.focus();
+  }
+  edit.elements.runDate.onchange=()=>loadDate(edit.elements.runDate.value);
+  $('#jump-log').onclick=()=>openDate(yesterday,true);
+  $('#calendar-cancel').onclick=()=>dialog.close();
+  edit.onsubmit=e=>{
+    e.preventDefault();
+    const old=runOn(selected),run=updatedRun(old,edit.elements.km.valueAsNumber);
+    run.different=edit.elements.different.checked;
+    const day=(new Date(selected+'T00:00:00Z').getUTCDay()+6)%7;
+    let planned;
+    try{planned=effectivePlan(readPlanBook(),planMonday(selected))?.find(s=>s.day===day);}catch{}
+    if(run.different)run.type=edit.elements.type.value;
+    else if(planned && (!old || old.different))run.type=planned.type;
+    try{localStorage.setItem(journalPrefix+selected,JSON.stringify(run));}
+    catch{edit.querySelector('[role=status]').textContent='거리를 저장하지 못했습니다.';return;}
+    for(const row of rows.children){
+      if(row.elements.date.value===selected && row.elements.km.value===row.dataset.original)row.elements.date.onchange();
+    }
+    month=monthStart(selected);dialog.close();onChange();
+    $('#month-days [data-date="'+selected+'"]').focus({preventScroll:true});
+    if(!edit.elements.runDate.disabled)$('#log-status').textContent=selected+' · '+kmText(run.km)+' km 저장했습니다.';
+    status.textContent=selected+' · '+kmText(run.km)+' km 저장했습니다.';
+  };
+  function showMonth(first){month=first;render();}
+  $('#prev-month').onclick=()=>showMonth(shiftMonth(month,-1));
+  $('#next-month').onclick=()=>showMonth(shiftMonth(month,1));
+  function render(){
+    const runs=loggedRuns(today),next=shiftMonth(month,1),last=shiftPlanDate(next,-1);
+    const stats=periodStats(runs,month,last),prior=shiftMonth(month,-1),priorLast=shiftPlanDate(month,-1);
+    const partial=month===thisMonth;
+    const priorEnd=partial?prior.slice(0,8)+(today.slice(8)<priorLast.slice(8)?today.slice(8):priorLast.slice(8)):priorLast;
+    const previous=periodStats(runs,prior,priorEnd);
+    $('#month-label').textContent=dateTitle(month);$('#next-month').disabled=partial;
+    $('#month-total').textContent=stats.count?kmText(stats.km)+' km · '+stats.count+'회':'기록 없음';
+    const diff=stats.km-previous.km;
+    $('#month-compare').textContent=(partial?'전월 1–'+Number(priorEnd.slice(8))+'일':'전월 전체')+
+      (previous.count?(stats.count?' 대비 '+kmText(Math.abs(diff))+' km '+(diff<0?'감소':diff>0?'증가':'차이'):' · '+kmText(previous.km)+' km'):' · 기록 없음');
+    const bars=$('#month-bars');bars.replaceChildren();
+    const end=month<shiftMonth(thisMonth,-5)?month:thisMonth;
+    const months=Array.from({length:6},(_,i)=>shiftMonth(end,i-5));
+    const totals=months.map(m=>periodStats(runs,m,shiftPlanDate(shiftMonth(m,1),-1)));
+    const max=Math.max(1,...totals.map(s=>s.km));
+    months.forEach((m,i)=>{
+      const b=document.createElement('button'),s=totals[i];
+      b.type='button';b.setAttribute('aria-pressed',String(m===month));
+      b.setAttribute('aria-label',dateTitle(m)+' '+(s.count?kmText(s.km)+' km':'기록 없음'));
+      b.innerHTML='<small>'+ (s.count?kmText(s.km):'—')+'</small><i></i><span>'+Number(m.slice(5,7))+'월</span>';
+      b.style.setProperty('--height',Math.round(34*s.km/max)+'px');b.onclick=()=>showMonth(m);bars.append(b);
+    });
+    const grid=$('#month-days');grid.replaceChildren();
+    for(const day of planDays){const label=document.createElement('small');label.textContent=day;grid.append(label);}
+    const offset=(new Date(month+'T00:00:00Z').getUTCDay()+6)%7;
+    for(let i=0;i<offset;i++)grid.append(document.createElement('span'));
+    for(let date=month;date<next;date=shiftPlanDate(date,1)){
+      const run=runOn(date),b=document.createElement('button');
+      b.type='button';b.dataset.date=date;b.disabled=date>today;
+      b.innerHTML='<span>'+Number(date.slice(8))+'</span>'+(run?'<small>'+kmText(run.km)+' km</small>':'');
+      b.setAttribute('aria-label',date+' '+(run?kmText(run.km)+' km 수정':'기록 추가'));
+      if(date===today)b.setAttribute('aria-current','date');
+      if(run)b.className='logged';b.onclick=()=>openDate(date);grid.append(b);
+    }
+    $('#other-totals').textContent='이번 주 '+kmText(periodStats(runs,planMonday(today),today).km)+' km · 올해 '+kmText(periodStats(runs,today.slice(0,4)+'-01-01',today).km)+' km';
   }
   const rows=$('#past-rows'),status=$('#past-status');
   function addRow(date){
@@ -124,7 +177,7 @@ function mountMileage(today,onChange){
       status.textContent='저장하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.';return;
     }
     const next=shiftPlanDate([...entries.keys()].sort()[0],-1);
-    onChange();rows.replaceChildren();addRow(next);
+    month=monthStart([...entries.keys()].sort().at(-1));onChange();rows.replaceChildren();addRow(next);
     $('#past-runs').open=false;
     status.textContent=Array.from(entries,([date,{run}])=>date+' · '+kmText(run.km)+' km').join(' / ')+' 저장했습니다.';
   };
