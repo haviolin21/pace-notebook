@@ -146,30 +146,7 @@ function mountRecordEditor(onApply,onCancel){
   return {form,message:()=>saveStatus.textContent,open(){resetDraft();form.hidden=false;clock.focus()}};
 }
 function profileFields(){
-  return `      <details><summary>내 참고 심박 보기</summary>
-      <form id="first-profile"><div class="layout">
-        <label>만 나이<input name="age" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="예: 34"></label>
-        <label>성별<select name="sex"><option value="">선택 안 함</option><option value="male">남성</option><option value="female">여성</option></select></label>
-      </div><button type="submit">추천에 반영</button><small role="status" id="first-status"></small></form>
-      <small>심박은 성인 18–85세의 집단 평균으로 추정합니다. 35세 이상 여성은 여성 연구식, 그 외에는 성인 공통식을 사용합니다. 심박에 영향을 주는 약을 복용하면 대화 가능한 강도를 기준으로 삼으세요.</small>
-      </details>`;
-}
-function mountProfile(profile,update){
-  const firstForm = $('#first-profile');
-  firstForm.elements.age.value = profile.age || '';
-  firstForm.elements.sex.value = profile.sex || '';
-  firstForm.onsubmit = event => {
-    event.preventDefault();
-    const previous = profileSummary(profile);
-    profile.age = firstForm.elements.age.value;
-    profile.sex = firstForm.elements.sex.value;
-    let message = '추천에 반영했습니다.';
-    try{
-      localStorage.setItem(coachProfileKey,JSON.stringify(profile));
-    }catch{message = '이번 화면에만 반영했습니다.'}
-    $('#first-status').textContent = [message, '이전  '+previous, '반영 후  '+profileSummary(profile)].join('\n');
-    update();
-  };
+  return '<a href="#profile">내 정보에서 참고 심박 설정</a>';
 }
 function training(){
   const profile = coachProfile();
@@ -264,7 +241,6 @@ ${recordFields()}
   }
   $('#choose-first').onclick = () => choose(true);
   $('#choose-record').onclick = () => {choose(false); if(!editor.form.hidden)editor.open()};
-  mountProfile(profile,changeView);
   changeView();
   mountTrack();
 }
@@ -285,24 +261,32 @@ function readWorkoutMetrics(raw){
   return {km,elapsed,pace:pace || (elapsed && km ? Math.round(elapsed/km) : null)};
 }
 
-function runnerSettings(onSave){
-  tool('내 러너 정보', `
-    <form id="runner-settings"><div class="layout">
-      <label>만 나이<input name="age" type="number" min="1" max="120" step="1" inputmode="numeric"></label>
+function runnerSettings(){
+  tool('기본 정보', `
+    <form id="runner-settings"><div class="profile-grid">
+      <label>만 나이<input name="age" type="number" min="1" max="120" step="1" inputmode="numeric" placeholder="세"></label>
       <label>성별<select name="sex"><option value="">선택 안 함</option><option value="male">남성</option><option value="female">여성</option></select></label>
-      <label>체중 (kg)<input name="weight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 70"></label>
-    </div><button type="submit">내 정보 저장</button><small role="status"></small></form>
-    <small>이 브라우저에 저장합니다. 나이는 참고 심박에, 성별은 참고 심박과 대회 비교 그룹에, 체중은 칼로리 계산에 반영됩니다.</small>`);
-  const form = $('#runner-settings'), fields = ['age','sex','weight'];
+      <label>키 (cm)<input name="height" type="number" min="1" max="300" step="0.1" inputmode="decimal" placeholder="예: 175"></label>
+      <label>몸무게 (kg)<input name="weight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 70"></label>
+    </div><small>원하는 항목만 입력하세요. 이 브라우저에 저장됩니다.</small>
+    <button type="submit">내 정보 저장</button><p class="profile-status" role="status"></p></form>`);
+  const form = $('#runner-settings'), fields = ['age','sex','height','weight'];
   const saved = coachProfile();
   fields.forEach(key=>form.elements[key].value=saved[key] || '');
   form.onsubmit = event=>{
     event.preventDefault();
-    const profile = coachProfile();
+    const profile = coachProfile(), previous = profileSummary(profile);
     fields.forEach(key=>profile[key]=form.elements[key].value);
-    let message = '내 정보를 저장했습니다.';
-    try{localStorage.setItem(coachProfileKey,JSON.stringify(profile));}catch{message='이번 화면에만 반영했습니다.';}
-    form.querySelector('[role=status]').textContent = message+' '+profileSummary(profile);
-    onSave(profile);
+    const current = profileSummary(profile);
+    const status = form.querySelector('[role=status]');
+    try{localStorage.setItem(coachProfileKey,JSON.stringify(profile));}
+    catch{status.textContent='이 브라우저에 저장하지 못했습니다.';return;}
+    status.textContent = previous===current ? '저장했습니다. '+current :
+      ['저장했습니다.','이전  '+previous,'반영 후  '+current].join('\n');
   };
+  tool('내 러닝 기록', '<p>훈련 페이스를 계산할 때 사용할 최근 대회 기록을 저장하세요.</p>'+recordFields());
+  const editor = mountRecordEditor(()=>{},()=>{});
+  editor.form.hidden=false;
+  editor.form.querySelector('[type=submit]').textContent='러닝 기록 저장';
+  $('#cancel-pb').hidden=true;
 }

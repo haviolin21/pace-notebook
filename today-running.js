@@ -329,7 +329,6 @@ function todayRunning(){
     paceSetup.focus();
   });
   session.tabIndex = -1;
-  mountProfile(profile,showAdvice);
   paceSetup.onclick = () => {
     $('#today-record').hidden = false;
     paceSetup.hidden = true;

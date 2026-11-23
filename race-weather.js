@@ -45,13 +45,7 @@ function ranking(){
   const refresh = mountDurationInput($('#rank-time'),$('#rank-feedback'),update);
   race.onchange = ()=>{setCourses();refresh();};
   group.onchange = course.onchange = refresh;
-  runnerSettings(profile=>{useProfile(profile);refresh();});
-  const settings = $('#runner-settings').closest('section');
-  const disclosure = document.createElement('details');
-  const label = document.createElement('summary');
-  label.textContent = '내 나이·성별 입력';
-  disclosure.append(label,settings);
-  $('#rank-time').closest('label').before(disclosure);
+
 }
 
 function races(){

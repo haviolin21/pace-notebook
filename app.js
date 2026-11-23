@@ -37,17 +37,21 @@ function calculator(){
   `);
   const records = document.querySelectorAll('.distance-results strong');
   tool('페이스별 예상 활동 칼로리', `
-    <div class="layout"><label>체중 (kg)<input id="kcal-weight" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 70"></label>
+    <div class="layout"><p id="weight-summary"></p>
     <label>달린 거리 (km)<input id="kcal-distance" type="number" min="0.01" step="any" inputmode="decimal" value="5"></label></div>
     <p id="kcal-result" role="status"></p>
     <small>평지에서 달리는 성인의 평균 추정치입니다. 현재 속도와 가장 가까운 강도에서 휴식 소모량을 뺀 값으로 계산합니다. <a href="https://pacompendium.com/running/">달리기 강도 기준</a></small>`);
-  const weight = $('#kcal-weight'), distanceField = $('#kcal-distance');
-  weight.value = coachProfile().weight || '';
+  const weight = Number(coachProfile().weight), distanceField = $('#kcal-distance');
+  $('#weight-summary').textContent = weight>0 ? '현재 체중 '+weight+' kg · ' : '';
+  const weightLink = document.createElement('a');
+  weightLink.href = '#profile';
+  weightLink.textContent = weight>0 ? '내 정보 수정' : '내 정보에서 체중 입력';
+  $('#weight-summary').append(weightLink);
   let displayedSpeed;
   function renderCalories(){
-    const rate = activeKcalPerKm(displayedSpeed,weight.valueAsNumber);
+    const rate = activeKcalPerKm(displayedSpeed,weight);
     let message = '체중을 입력하면 현재 페이스의 예상 칼로리가 표시됩니다.';
-    if(weight.valueAsNumber>0 && weight.validity.valid){
+    if(weight>0){
       if(!Number.isFinite(displayedSpeed)) message = '페이스 또는 속도를 확인해 주세요.';
       else if(!rate) message = '칼로리 추정 범위는 약 4.2–22.5 km/h입니다.';
       else {
@@ -59,8 +63,6 @@ function calculator(){
     $('#kcal-result').textContent = message;
   }
   distanceField.oninput = renderCalories;
-  runnerSettings(profile=>{weight.value=profile.weight || '';renderCalories();});
-  weight.oninput = ()=>{$('#runner-settings').elements.weight.value=weight.value;renderCalories();};
   function output(value){
     displayedSpeed = value;
     renderCalories();
@@ -229,6 +231,17 @@ const primaryLinks = groups.map(group => {
 });
 function display(){
   const route = location.hash.slice(1);
+  const profileLink = $('.profile-link');
+  if(route==='profile'){
+    profileLink.setAttribute('aria-current','page');
+    primaryLinks.forEach(link=>link.removeAttribute('aria-current'));
+    subnav.replaceChildren();
+    subnav.hidden=true;
+    $('#screen').innerHTML='<h1>내 정보</h1><p class="profile-intro">한 번 저장하면 훈련 추천, 칼로리 계산, 대회 기록 비교에 함께 사용해요.</p>';
+    runnerSettings();
+    return;
+  }
+  profileLink.removeAttribute('aria-current');
   const group = groups.find(item => item.pages.some(([id]) => id === route)) || groups[0];
   const page = group.pages.find(([id]) => id === route) || group.pages[0];
   primaryLinks.forEach((link, i) => {
