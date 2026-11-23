@@ -72,6 +72,7 @@ function mountScreenshotImport(form){
       form.elements.km.value = km ?? '';
       form.elements.elapsed.value = elapsed ? time(elapsed) : '';
       form.elements.pace.value = pace ? time(pace) : '';
+      form.elements.elapsed.dispatchEvent(new Event('input',{bubbles:true}));
       status.textContent = km && elapsed && pace ? '인식한 값을 사진과 비교한 뒤 저장하세요.' : '확실하게 읽은 값만 채웠습니다. 빈칸은 사진을 보고 입력해 주세요.';
     }catch{
       if(active())status.textContent='사진을 읽지 못했습니다. PNG 또는 JPEG로 다시 선택하거나 직접 입력해 주세요.';
@@ -93,29 +94,36 @@ function runOn(date){
 }
 
 function mountJournal(dateKey, weekday, planned, selectedType){
-  tool('이번 주 러닝', '<p id="week-total"></p><ol class="week-track"></ol><p id="run-receipt"></p>');
+  const drawMileage=mountMileage(dateKey,draw);
   const list = $('.week-track');
   function draw(){
-    let count = 0, total = 0;
+    drawMileage();
     list.replaceChildren();
     planDays.forEach((day,i) => {
       const date = new Date(dateKey+'T00:00:00Z');
       date.setUTCDate(date.getUTCDate()+i-weekday);
       const run = runOn(date.toISOString().slice(0,10));
       const li = document.createElement('li');
-      if(run){count++; total += run.km; li.className = 'finished'}
+      if(run)li.className = 'finished';
       if(i === weekday) li.setAttribute('aria-current','date');
       li.innerHTML = '<small>'+day+'</small><b>'+(run?'✓':date.getUTCDate())+'</b>';
       li.setAttribute('aria-label', day+'요일 '+(i===weekday?'오늘 ':'')+(run?run.km+'km 완료':'기록 없음'));
       list.append(li);
     });
-    $('#week-total').textContent = count+'회 · '+Number(total.toFixed(2))+' km';
     const run = runOn(dateKey);
-    $('#run-receipt').textContent = run ? '오늘 완료 · '+run.type+' '+run.km+'km · '+[run.elapsed && time(run.elapsed),run.pace && time(run.pace)+'/km',run.feel].filter(Boolean).join(' · ') : '';
+    $('#run-receipt').textContent = run ? '오늘 완료 · '+run.type+' '+run.km+'km'+[run.elapsed && time(run.elapsed),run.pace && time(run.pace)+'/km',run.feel].filter(Boolean).map(value=>' · '+value).join('') : '';
     $('#open-run').textContent = run ? '완료 기록 수정' : '러닝 완료';
   }
   const form = $('#run-log');
   const resetPhoto = mountScreenshotImport(form);
+  function updatePace(){
+    const seconds=duration(form.elements.elapsed.value),km=form.elements.km.valueAsNumber;
+    const auto=seconds>0 && km>0;
+    $('#manual-pace').hidden=auto;
+    form.elements.pace.disabled=auto;
+    $('#pace-preview').textContent=auto?'평균 페이스 '+time(Math.round(seconds/km))+' /km':'';
+  }
+  form.addEventListener('input',updatePace);
   for(const name of ['elapsed','pace']){
     const field = form.elements[name];
     field.oninput = () => field.setCustomValidity('');
@@ -133,8 +141,10 @@ function mountJournal(dateKey, weekday, planned, selectedType){
       form.elements[name].value = run?.[name] ? time(run[name]) : '';
       form.elements[name].setCustomValidity('');
     }
-    form.elements.km.value = run?.km ?? (planned && selectedType()===planned.type ? planned.km : '');
-    form.elements.feel.value = run?.feel ?? '보통';
+    form.elements.km.value = run?.km ?? (planned && selectedType()===planned.type ? (planned.km ?? '') : '');
+    form.elements.feel.value = run?.feel ?? '';
+    $('#run-details').open=!!(run?.elapsed || run?.pace || run?.feel);
+    updatePace();
     form.elements.km.focus();
   };
   form.onsubmit = event => {
@@ -142,15 +152,17 @@ function mountJournal(dateKey, weekday, planned, selectedType){
     const metrics = {};
     for(const name of ['elapsed','pace']){
       const field = form.elements[name];
-      if(!field.value.trim())continue;
+      if(field.disabled || !field.value.trim())continue;
       const seconds = duration(field.value,name==='elapsed');
       if(!seconds){
         field.setCustomValidity('시간을 분:초 형식으로 확인해 주세요.');
+        $('#run-details').open=true;
         field.reportValidity();
         return;
       }
       metrics[name] = seconds;
     }
+    if(metrics.elapsed)metrics.pace=Math.round(metrics.elapsed/form.elements.km.valueAsNumber);
     const previous = runOn(dateKey);
     const type = selectedType();
     try{
@@ -161,13 +173,15 @@ function mountJournal(dateKey, weekday, planned, selectedType){
     }catch{$('#log-status').textContent='저장하지 못했습니다. 브라우저 저장 설정을 확인하세요.';return}
     form.hidden = true;
     draw();
-    $('#log-status').textContent='오늘의 완료 기록을 저장했습니다.';
+    const month=periodStats(loggedRuns(dateKey),monthStart(dateKey),dateKey);
+    $('#log-status').textContent='오늘 '+kmText(metrics.km ?? form.elements.km.valueAsNumber)+'km를 '+(previous?'수정':'기록')+'했습니다. 이번 달 누적 '+kmText(month.km)+'km입니다.';
     $('#open-run').focus();
   };
   draw();
 }
 function paceChoices(type,paces){
   if(!paces || !type || type==='휴식' || type==='첫 러닝')return [];
+  if(type==='걷기·달리기')return [];
   if(type==='템포런')return [paces.tempo];
   if(type==='인터벌')return [paces.interval];
   if(type==='긴 이지런'||type==='회복런')return [paces.easySlow];
@@ -187,6 +201,7 @@ const todayRunTips = {
   템포런:'가볍게 몸을 푼 뒤, 짧은 문장을 말할 수 있는 정도로 템포 구간을 시작하세요.',
   인터벌:'가볍게 몸을 풀고 빠른 구간을 시작하세요. 반복 사이에는 걷거나 천천히 뛰며 회복하세요.',
   '긴 이지런':'초반부터 편하게 달리고, 익숙한 거리 안에서 일정한 강도를 유지하세요.',
+  '걷기·달리기':'편하게 걷다가 짧게 달리고, 숨이 차면 다시 걸으세요.',
   회복런:'평소 이지런보다 여유 있게 달리세요.',
   자유주:'페이스는 몸 상태에 맞춰 고르고 처음에는 천천히 출발하세요.',
   휴식:'달리기를 쉬어가는 날입니다.'
@@ -239,7 +254,7 @@ function todayRunning(){
   try{plan = readWeeklyPlan()}catch{}
   const planned = plan?.find(session => session.day === day);
   const plannedType = planned?.type ?? (plan ? '휴식' : '');
-  const choice = readTodayRun(dateKey);
+  let choice = readTodayRun(dateKey);
   let {d,t} = readRaceRecord();
   const profile = coachProfile();
   let paces = profile.mode === "beginner" ? null : trainingPaces(d,t);
@@ -249,35 +264,38 @@ function todayRunning(){
   $('#screen h1').insertAdjacentHTML('afterend','<p class="today-intro">오늘 달릴 훈련을 고르고, 내 페이스와 소비 칼로리를 계산하고, 대회 기록을 비교해 보세요.</p>');
   tool(dateLabel, `
     <div id="today-overview">
-      <h4 id="today-session" class="today-session"></h4>
-      <div id="pick-session"><p id="pick-prompt">훈련을 고르면 오늘 달릴 강도와 방법을 알려드려요.</p>
-        <div class="session-picks">${[['첫 러닝','처음이라 추천받기'],['이지런','가볍게 달리기'],['템포런','템포런'],['인터벌','인터벌']].map(([type,label])=>'<button type="button" data-run="'+type+'">'+label+'</button>').join('')}</div></div>
-      <button type="button" id="back-choice" hidden>훈련 선택으로 돌아가기</button>
+      <div class="session-heading"><h4 id="today-session" class="today-session"></h4>
+        <button type="button" id="change-session" aria-controls="pick-session">훈련 변경</button></div>
+      <div id="pick-session">
+        <div class="session-picks first-pick"><button type="button" data-run="첫 러닝">처음이라 추천받기<span>20분 동안 걷기와 짧은 달리기를 번갈아 해요.</span></button></div>
+        <h4>직접 고르기</h4><div class="session-picks">
+          ${[['이지런','편안한 속도로'],['회복런','피곤한 날 짧고 느리게'],['긴 이지런','여유 있게 오래'],['템포런','빠른 속도를 일정하게'],['인터벌','빠르게 뛰고 쉬기를 반복'],['자유주','거리와 속도를 자유롭게'],['휴식','오늘은 쉬어가기']].map(([type,tip])=>'<button type="button" data-run="'+type+'">'+type+'<span>'+tip+'</span></button>').join('')}
+        </div><button type="button" id="follow-plan" hidden>주간 계획 따르기</button>
+      </div>
       <div id="today-pace" class="today-pace" aria-live="polite" hidden>
         <strong id="today-pace-value" hidden></strong>
         <small id="today-pace-context" hidden></small>
         <button id="today-pace-setup" type="button" hidden>내 기록으로 몇 분/km인지 보기</button>
         <div id="today-record" hidden>${recordFields()}</div>
-        <div id="today-first" hidden>${firstSessionSteps()}${profileFields()}</div>
+        <div id="today-first" hidden>${profileFields()}<details><summary>자세한 방법 보기</summary>${firstSessionSteps()}</details></div>
       </div>
       <p id="today-weather-line" class="today-weather-line" role="status"></p>
-      <button type="button" id="change-session" aria-expanded="false">훈련 변경</button><label class="today-choice" hidden>오늘 할 훈련<select id="today-type">
-        <option value="">${plannedType ? '주간 계획 따르기' : '훈련 선택하기'}</option>
-        ${[...runTypes,'첫 러닝','휴식'].map(type => '<option>'+type+'</option>').join('')}
-      </select></label>
       <div class="run-actions"><button id="open-run" type="button">러닝 완료</button><a href="#pace" id="today-calc">내 페이스로 계산</a></div>
       <form id="run-log" hidden>
+      <label>달린 거리 (km)<input name="km" type="number" step="0.01" min="0.01" inputmode="decimal" required></label>
+      <details id="run-details"><summary>시간 · 느낌 · 사진 추가</summary>
+      <label>운동 시간<input name="elapsed" placeholder="4859 → 48분 59초" inputmode="numeric" maxlength="12"></label>
+      <small id="pace-preview" role="status"></small>
+      <label id="manual-pace">평균 페이스 (선택, 분/km)<input name="pace" placeholder="예: 453" inputmode="numeric" maxlength="8"></label>
+      <label>달리고 난 느낌<select name="feel"><option value="">선택 안 함</option><option>여유</option><option>보통</option><option>힘듦</option></select></label>
       <label>운동 요약 스크린샷 가져오기<input type="file" name="photo" accept="image/*"></label>
-      <small>애플 피트니스의 운동 요약을 선택하세요. 사진은 이 기기에서만 읽습니다.</small>
-      <p class="photo-status" role="status"></p><label>실제 달린 거리 (km)<input name="km" type="number" step="0.01" min="0.01" inputmode="decimal" required></label><label>운동 시간 (선택)<input name="elapsed" placeholder="예: 4859" inputmode="numeric" maxlength="12"></label>
-      <label>평균 페이스 /km (선택)<input name="pace" placeholder="예: 453" inputmode="numeric" maxlength="8"></label>
-      <label>달리고 난 느낌<select name="feel"><option>여유</option><option>보통</option><option>힘듦</option></select></label><button type="submit">기록 저장</button></form><small id="log-status" role="status"></small>
+      <small>애플 피트니스의 운동 요약 사진을 이 기기에서 읽습니다.</small><p class="photo-status" role="status"></p>
+      </details><button type="submit">기록 저장</button></form><small id="log-status" role="status"></small>
       <small id="today-plan" hidden></small>
       <small id="today-save-status" role="status"></small>
     </div>
   `);
   $('#today-overview').closest('section').classList.add('today-card');
-  mountJournal(dateKey, day, planned, () => $('#today-type').value || plannedType);
   tool('출발 전 확인', `
     <div class="today-weather">
       <label class="today-region">예보 지역<select id="today-region"></select></label>
@@ -296,7 +314,8 @@ function todayRunning(){
     </div>
     <div class="today-links"><a href="#plan">주간 계획</a><a href="#training">PB 기반 훈련 페이스</a><a href="#weather">날씨와 복장</a></div>
   `);
-  const select = $('#today-type'), forecastText = $('#today-forecast');
+  mountJournal(dateKey, day, planned, () => choice || plannedType);
+  const forecastText = $('#today-forecast');
   const retry = $('#today-weather-retry'), outfit = $('#today-outfit');
   const region = $('#today-region'), weatherLine = $('#today-weather-line');
   places.forEach((place, index) => {
@@ -307,10 +326,9 @@ function todayRunning(){
   const paceCard = $('#today-pace'), paceValue = $('#today-pace-value');
   const paceContext = $('#today-pace-context'), paceSetup = $('#today-pace-setup');
   const planNote = $('#today-plan');
-  const plannedLabel = planned ? planned.type+' '+planned.km+'km' : plannedType;
+  const plannedLabel = planned ? planned.type+' '+sessionDose(planned) : plannedType;
   planNote.textContent = plannedLabel ? '주간 계획 · '+plannedLabel : '';
   const session = $('#today-session');
-  select.value = choice;
   let choosing = !(choice || plannedType);
   let forecast = null;
   let requestId = 0;
@@ -335,19 +353,22 @@ function todayRunning(){
     inlineEditor.open();
   };
   function showAdvice(){
-    const type = select.value || plannedType;
-    const overridesPlan = !!select.value && type !== plannedType;
+    const type = choice || plannedType;
+    const overridesPlan = !!choice && type !== plannedType;
     const first = type==='첫 러닝';
-    session.textContent = (overridesPlan ? type : plannedLabel) || '오늘은 어떤 러닝을 하세요?';
-    if(choosing)session.textContent = '오늘은 어떤 러닝을 하세요?';
-    $('#pick-prompt').textContent = choosing ? '훈련을 고르면 오늘 달릴 강도와 방법을 알려드려요.' : '다른 훈련을 누르면 추천이 바뀝니다.';
+    const title = first ? '첫 러닝 · 20분' : type==='휴식' ? '오늘은 휴식일이에요' : type;
+    session.textContent = choosing ? '오늘은 어떻게 달릴까요?' :
+      (!choice && planned ? '오늘 계획 · '+plannedLabel : title);
+    $('#pick-session').hidden = !choosing;
+    $('#follow-plan').hidden = !(choice && plannedType);
+    const change = $('#change-session');
+    change.hidden = !type;
+    change.textContent = choosing ? '취소' : '훈련 변경';
+    change.setAttribute('aria-expanded',String(choosing));
     for(const button of document.querySelectorAll('[data-run]')){
-      button.setAttribute('aria-pressed',String(!choosing && button.dataset.run===type));
+      button.setAttribute('aria-pressed',String(button.dataset.run===type));
     }
-    $('#back-choice').hidden = choosing;
-    $('#change-session').textContent = chooser.hidden ? '전체 훈련 보기' : '전체 훈련 접기';
-    $('#change-session').hidden = false;
-    $('#today-calc').hidden = choosing || !paces || !type || first || type==='휴식';
+    $('#today-calc').hidden = choosing || !paces || !type || first || type==='걷기·달리기' || type==='휴식';
     $('#today-calc').onclick = () => {
       const options = paceChoices(type,paces);
       if(options.length) speed = 3600/Math.round(options[Math.floor(options.length/2)]);
@@ -361,9 +382,11 @@ function todayRunning(){
       paceSetup.hidden = first || !$('#today-record').hidden;
       $('#today-first').hidden = !first;
       if(first){
-        const guide = firstRun(profile);
-        paceValue.textContent = guide.title;
-        paceContext.textContent = guide.detail;
+        paceValue.hidden = true;
+        paceContext.textContent = '5분 걷기 → 1분 달리기와 90초 걷기 4회 → 5분 걷기';
+      }else if(type==='걷기·달리기'){
+        paceValue.hidden = paceSetup.hidden = true;
+        paceContext.textContent = todayRunTips[type];
       }else if(!paces){
         paceContext.textContent = todayRunTips[type];
       }else{
@@ -386,40 +409,32 @@ function todayRunning(){
     history.hidden = !matching;
     if(matching) history.textContent = '비슷한 날의 기록 · '+matching.clothes+' · '+(matching.feel || '체감 미기록');
   }
-  const chooser = select.closest('label');
-  $('#back-choice').onclick = () => {
-    choosing = true;
-    chooser.hidden = true;
-    $('#today-record').hidden = true;
-    $('#run-log').hidden = true;
-    $('#today-save-status').textContent = '';
-    $('#change-session').setAttribute('aria-expanded','false');
-    showAdvice();
-    $('#pick-session button').focus();
-  };
   $('#change-session').onclick = () => {
-    chooser.hidden = !chooser.hidden;
-    $('#change-session').setAttribute('aria-expanded',String(!chooser.hidden));
-    showAdvice();
-    if(!chooser.hidden) select.focus();
-  };
-  for(const button of document.querySelectorAll('[data-run]')){
-    button.onclick = () => {select.value = button.dataset.run; select.onchange()};
-  }
-  select.onchange = () => {
-    choosing = !(select.value || plannedType);
+    choosing = !choosing;
     $('#today-record').hidden = true;
-    chooser.hidden = true;
-    $('#change-session').setAttribute('aria-expanded','false');
-    session.focus();
     $('#run-log').hidden = true;
+    showAdvice();
+    if(choosing) $('#pick-session button').focus();
+    else session.focus();
+  };
+  function choose(next){
+    choice = next;
+    choosing = false;
+    $('#today-record').hidden = true;
+    $('#run-log').hidden = true;
+    $('#today-first details').open = false;
     try{
-      if(select.value) localStorage.setItem(todayRunKey, JSON.stringify({date:dateKey,type:select.value}));
+      if(choice) localStorage.setItem(todayRunKey,JSON.stringify({date:dateKey,type:choice}));
       else localStorage.removeItem(todayRunKey);
       $('#today-save-status').textContent = '';
     }catch{$('#today-save-status').textContent = '이 브라우저에 오늘의 선택을 저장하지 못했습니다.'}
     showAdvice();
-  };
+    session.focus();
+  }
+  for(const button of document.querySelectorAll('[data-run]')){
+    button.onclick = () => choose(button.dataset.run);
+  }
+  $('#follow-plan').onclick = () => choose('');
   async function load(){
     const currentRequest = ++requestId;
     const place = places[Number(region.value)];

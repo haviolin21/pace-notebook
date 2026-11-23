@@ -209,11 +209,11 @@ const groups = [
   {label:'오늘', pages:[['today','오늘의 러닝',todayRunning]]},
   {label:'계산', pages:[['pace','페이스 계산기',calculator]]},
   {label:'훈련', pages:[
-    ['training','훈련 페이스',training],
     ['plan','훈련 계획',() => {
       $('#screen').insertAdjacentHTML('beforeend','<div id="planner"></div>');
       mountPlanner();
     }],
+    ['training','훈련 페이스',training],
     ['stretch','스트레칭 팁',stretchingGuide],
     ['nutrition','식단 추천',nutritionGuide]
   ]},

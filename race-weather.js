@@ -49,10 +49,11 @@ function ranking(){
 }
 
 function races(){
-  tool('국내 대회','<label>종목<select id="race-filter"><option>전체</option><option>10km</option><option>하프</option><option>풀코스</option></select></label><div id="events"></div><small>일정 확인일 2026.11.23 · 접수 변경 사항은 대회 공식 안내에서 확인하세요.</small>');
+  tool('국내 대회','<label>종목<select id="race-filter"><option>전체</option><option>5km</option><option>10km</option><option>하프</option><option>풀코스</option></select></label><div id="events"></div><small>일정 확인일 2026.11.23 · 접수 변경 사항은 대회 공식 안내에서 확인하세요.</small>');
   const events=[['2027 서울마라톤','2027.03.21','서울 · 광화문광장(풀), 잠실종합운동장(10km) 예정',['10km','풀코스'],'https://seoul-marathon.com/96','<a href="https://seoul-marathon.com/90">접수 일정</a>'],['2026 MBN 서울마라톤','2026.11.15','서울 · 광화문광장 출발',['10km','하프'],'https://mbn-seoulmarathon.com','<a href="#rank">완주 기록 비교</a>']];
-  function render(){const val=$('#race-filter').value;$('#events').innerHTML=events.filter(e=>val==='전체'||e[3].includes(val)).map(([name,date,where,km,url,link])=>'<article class="race"><small>'+date+' · '+km.join(' / ')+'</small><h3>'+name+'</h3><p>'+where+'</p><a href="'+url+'">공식 대회 안내</a> · '+link+'</article>').join('')}
-  $('#race-filter').onchange=render;render();
+  function render(){const val=$('#race-filter').value;$('#events').innerHTML=events.filter(e=>val==='전체'||e[3].includes(val)).map(([name,date,where,km,url,link])=>'<article class="race"><small>'+date+' · '+km.join(' / ')+'</small><h3>'+name+'</h3><p>'+where+'</p><a href="'+url+'">공식 대회 안내</a> · '+link+'</article>').join('') || '<p>현재 목록에 이 거리의 대회가 없습니다.</p>'}
+  $('#race-filter').value=raceListFilter || savedRaceGoal()?.name || '전체';
+  $('#race-filter').onchange=()=>{raceListFilter=$('#race-filter').value;render();};render();
 }
 const weatherFavoritesKey = 'pace-note.weather-favorites.v1';
 
