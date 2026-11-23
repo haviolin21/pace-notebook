@@ -150,8 +150,8 @@ function profileFields(){
   const age = Number(profile.age);
   if(!Number.isInteger(age) || age<=0) return '<p><a href="#profile">내 정보에서 나이 입력</a></p>';
   const pulse = referencePulse(profile);
-  const summary = pulse ? '중강도 참고 심박 약 '+pulse : '참고 심박 추정 범위 밖';
-  return '<p><strong>'+summary+'</strong><br>만 '+age+'세 기준 · <a href="#profile">내 정보 수정</a></p>';
+  const summary = pulse ? '심박 '+pulse+' (중강도 참고)' : '참고 심박 추정 범위 밖';
+  return '<p>만 '+age+'세 기준 · <a href="#profile">내 정보 수정</a><br><span style="font-size:0.875rem;font-weight:400;line-height:1.5">'+summary+'</span></p>';
 }
 function training(){
   const profile = coachProfile();
