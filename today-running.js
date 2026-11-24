@@ -119,9 +119,7 @@ function mountJournal(dateKey, weekday, planned, selectedType){
   }
   const form = $('#run-log');
   const resetPhoto = mountScreenshotImport(form);
-  const actual=form.elements.actualType,different=form.elements.different;
-  runTypes.forEach(t=>actual.add(new Option(t,t)));
-  different.onchange=()=>{$('#actual-type').hidden=!different.checked;};
+  const actual=form.elements.actualType;
   function updatePace(){
     const seconds=duration(form.elements.elapsed.value),km=form.elements.km.valueAsNumber;
     const auto=seconds>0 && km>0;
@@ -150,9 +148,8 @@ function mountJournal(dateKey, weekday, planned, selectedType){
     }
     form.elements.km.value = run?.km ?? (planned && selectedType()===planned.type ? (planned.km ?? '') : '');
     form.elements.feel.value = run?.feel ?? '';
-    different.checked=!!run?.different || !!(planned && (run?.type || selectedType())!==planned.type && !((run?.type || selectedType())==='첫 러닝' && planned.type==='걷기·달리기'));
-    actual.value=runTypes.includes(run?.type)?run.type:runTypes.includes(selectedType())?selectedType():'자유주';
-    different.onchange();
+    const suggested=selectedType();
+    setRunTypeOptions(actual,run?.type || (suggested==='휴식'?null:suggested) || planned?.type);
     $('#run-details').open=true;
     updatePace();
     form.elements.km.focus();
@@ -174,12 +171,11 @@ function mountJournal(dateKey, weekday, planned, selectedType){
     }
     if(metrics.elapsed)metrics.pace=Math.round(metrics.elapsed/form.elements.km.valueAsNumber);
     const previous = runOn(dateKey);
-    const type = different.checked?actual.value:(planned?.type || previous?.type || selectedType());
+    const type=actual.value;
+    const originalPlan=previous && Object.hasOwn(previous,'planned')?previous.planned:planned || null;
     try{
       localStorage.setItem(journalPrefix+dateKey,JSON.stringify({
-        type:!planned && !selectedType()?'자유주':type && type !== '휴식' ? type : previous?.type || '자유주',
-        planned:previous && Object.hasOwn(previous,'planned')?previous.planned:planned || null,
-        different:different.checked,...metrics,km:form.elements.km.valueAsNumber,feel:form.elements.feel.value
+        type,planned:originalPlan,different:differsFromPlan(type,originalPlan),...metrics,km:form.elements.km.valueAsNumber,feel:form.elements.feel.value
       }));
     }catch{$('#log-status').textContent='저장하지 못했습니다. 브라우저 저장 설정을 확인하세요.';return}
     form.hidden = true;
@@ -311,7 +307,7 @@ function todayRunning(){
       <div class="today-links"><a href="#records">지난 러닝 기록하기</a><a href="#plan">주간 훈련 계획</a></div>
       <form id="run-log" hidden>
       <label>달린 거리 (km)<input name="km" type="number" step="0.01" min="0.01" inputmode="decimal" required></label>
-      <label><input type="checkbox" name="different"> 다르게 달렸어요</label><label hidden id="actual-type">실제 훈련<select name="actualType"></select></label>
+      <label>러닝 종류<select name="actualType" required></select></label>
       <details id="run-details"><summary>시간 · 느낌 · 사진 추가</summary>
       <label>운동 시간<input name="elapsed" placeholder="4859 → 48분 59초" inputmode="numeric" maxlength="12"></label>
       <small id="pace-preview" role="status"></small>

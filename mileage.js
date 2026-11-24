@@ -1,3 +1,11 @@
+function setRunTypeOptions(select,value){
+  const types=[...new Set([...runTypes,'지속주','빌드업주','LSD',...(value?[value]:[])])];
+  select.replaceChildren(new Option('종류 선택',''),...types.map(type=>new Option(type,type)));
+  select.value=value || '';
+}
+function differsFromPlan(type,plan){
+  return !!plan && (type==='첫 러닝'?'걷기·달리기':type)!==plan.type;
+}
 const kmText=n=>Number(n.toFixed(2)).toLocaleString('ko-KR');
 function loggedRuns(today=planToday()){
   const runs=[];
@@ -28,7 +36,7 @@ function mountMileage(today){
   let month=thisMonth,selected='';
   tool('월별 마일리지',`<div id="months"><div class="month-heading"><button type="button" id="prev-month" aria-label="이전 달">‹</button><h4 id="month-label"></h4><button type="button" id="next-month" aria-label="다음 달">›</button></div>
     <strong id="month-total"></strong><p id="month-compare"></p><div id="month-bars" aria-label="월별 거리 비교"></div>
-    <div class="month-grid" id="month-days"></div><small id="other-totals"></small></div><button type="button" id="jump-log">지난 러닝 기록하기</button><ul id="month-runs" aria-label="날짜별 기록"></ul>
+    <small>날짜를 눌러 기록을 추가하거나 수정·삭제하세요.</small><div class="month-grid" id="month-days"></div><small id="other-totals"></small></div><button type="button" id="jump-log">지난 러닝 기록하기</button><ul id="month-runs" aria-label="날짜별 기록"></ul>
     <details id="past-runs"><summary>여러 날짜 입력</summary><form id="past-form"><div id="past-rows"></div>
     <div class="actions"><button type="button" id="past-add">다른 날짜 추가</button><button type="submit">기록 저장</button></div></form></details>
     <p role="status" id="past-status"></p>
@@ -37,8 +45,8 @@ function mountMileage(today){
     <label>운동 시간 (선택)<input name="elapsed" placeholder="예: 48:59" inputmode="numeric"></label>
     <label>평균 페이스 (선택)<input name="pace" placeholder="예: 4:53" inputmode="numeric"></label>
     <label>스크린샷으로 입력<input type="file" name="photo" accept="image/*"></label><small class="photo-status" role="status"></small>
-    <label><input type="checkbox" name="different"> 다르게 달렸어요</label><label id="calendar-type" hidden>실제 훈련<select name="type"></select></label>
-    <div class="actions"><button type="submit">저장</button><button id="calendar-cancel" type="button">취소</button></div><p role="status"></p></form></dialog>`);
+    <label>러닝 종류<select name="type" required></select></label>
+    <div class="actions"><button type="submit">저장</button><button id="calendar-cancel" type="button">취소</button><button type="button" id="delete-run" hidden>기록 삭제</button></div><p role="status"></p></form></dialog>`);
   const form=$('#past-form'),edit=$('#calendar-edit'),dialog=$('#day-dialog');
   const resetPhoto=mountScreenshotImport(edit);
   dialog.addEventListener('close',resetPhoto);
@@ -48,8 +56,6 @@ function mountMileage(today){
     if(edit.elements.pace.disabled)edit.elements.pace.value=time(Math.round(seconds/km));
   }
   edit.addEventListener('input',updatePace);
-  runTypes.forEach(t=>edit.elements.type.add(new Option(t,t)));
-  edit.elements.different.onchange=()=>{$('#calendar-type').hidden=!edit.elements.different.checked;};
   function updatedRun(old,km,date){
     const planned=old && Object.hasOwn(old,'planned')?old.planned:plannedOn(date);
     return {...old,planned,type:old?.type||planned?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
@@ -59,6 +65,8 @@ function mountMileage(today){
     resetPhoto();
     selected=date;
     const run=runOn(date);
+    $('#delete-run').hidden=!run;
+    edit.querySelector('button[type=submit]').textContent=run?'수정 저장':'저장';
     $('#dialog-date').textContent=date+' · '+(run?'기록 수정':'러닝 추가');
     const planned=run && Object.hasOwn(run,'planned')?run.planned:plannedOn(date);
     $('#dialog-plan').textContent=planned?'예정 · '+planned.type+' '+sessionDose(planned):'';
@@ -66,9 +74,7 @@ function mountMileage(today){
     edit.elements.elapsed.value=run?.elapsed?time(run.elapsed):'';
     edit.elements.pace.value=run?.pace?time(run.pace):'';
     updatePace();
-    edit.elements.different.checked=!!run?.different;
-    edit.elements.type.value=runTypes.includes(run?.type)?run.type:'자유주';
-    edit.elements.different.onchange();
+    setRunTypeOptions(edit.elements.type,run?.type || planned?.type);
     edit.querySelector('[role=status]').textContent='';
   }
   function openDate(date,quick=false){
@@ -82,6 +88,22 @@ function mountMileage(today){
   edit.elements.runDate.onchange=()=>loadDate(edit.elements.runDate.value);
   $('#jump-log').onclick=()=>openDate(yesterday,true);
   $('#calendar-cancel').onclick=()=>dialog.close();
+  function finishEdit(){
+    for(const row of rows.children){
+      if(row.elements.date.value===selected && row.elements.km.value===row.dataset.original && row.elements.type.value===row.dataset.originalType)row.elements.date.onchange();
+    }
+    month=monthStart(selected);dialog.close();render();
+    $('#month-days [data-date="'+selected+'"]').focus({preventScroll:true});
+  }
+  $('#delete-run').onclick=()=>{
+    const run=runOn(selected);
+    if(!run)return;
+    if(!window.confirm(selected+' · '+kmText(run.km)+' km 기록을 삭제할까요?'))return;
+    try{localStorage.removeItem(journalPrefix+selected);}
+    catch{edit.querySelector('[role=status]').textContent='기록을 삭제하지 못했습니다. 다시 시도해 주세요.';return;}
+    finishEdit();
+    status.textContent=selected+' 기록을 삭제했습니다.';
+  };
   edit.onsubmit=e=>{
     e.preventDefault();
     const old=runOn(selected),run=updatedRun(old,edit.elements.km.valueAsNumber,selected);
@@ -92,17 +114,11 @@ function mountMileage(today){
       if(value && !seconds){edit.querySelector('[role=status]').textContent='입력한 시간을 확인해 주세요.';field.focus();return;}
       run[key]=seconds || null;
     }
-    run.different=edit.elements.different.checked;
-    const planned=run.planned;
-    if(run.different)run.type=edit.elements.type.value;
-    else if(planned && (!old || old.different))run.type=planned.type;
+    run.type=edit.elements.type.value;
+    run.different=differsFromPlan(run.type,run.planned);
     try{localStorage.setItem(journalPrefix+selected,JSON.stringify(run));}
     catch{edit.querySelector('[role=status]').textContent='거리를 저장하지 못했습니다.';return;}
-    for(const row of rows.children){
-      if(row.elements.date.value===selected && row.elements.km.value===row.dataset.original)row.elements.date.onchange();
-    }
-    month=monthStart(selected);dialog.close();render();
-    $('#month-days [data-date="'+selected+'"]').focus({preventScroll:true});
+    finishEdit();
     status.textContent=selected+' · '+kmText(run.km)+' km 저장했습니다.';
   };
   function showMonth(first){month=first;render();}
@@ -154,7 +170,7 @@ function mountMileage(today){
   const rows=$('#past-rows'),status=$('#past-status');
   function addRow(date){
     const row=document.createElement('fieldset');
-    row.innerHTML='<legend>지난 러닝</legend><div class="actions"><button type="button" data-days="1">어제</button><button type="button" data-days="2">그제</button></div><div class="layout"><label>날짜<input type="date" name="date" required></label><label>달린 거리 (km)<input type="number" name="km" min="0.01" step="0.01" inputmode="decimal" required></label></div><small></small><button type="button" class="remove-row">입력 줄 삭제</button>';
+    row.innerHTML='<legend>지난 러닝</legend><div class="actions"><button type="button" data-days="1">어제</button><button type="button" data-days="2">그제</button></div><div class="layout"><label>날짜<input type="date" name="date" required></label><label>달린 거리 (km)<input type="number" name="km" min="0.01" step="0.01" inputmode="decimal" required></label></div><label>러닝 종류<select name="type" required></select></label><small></small><button type="button" class="remove-row">입력 줄 삭제</button>';
     rows.append(row);
     const day=row.elements.date,km=row.elements.km;
     day.max=yesterday;
@@ -162,6 +178,8 @@ function mountMileage(today){
       day.value=value;
       const existing=runOn(value);
       km.value=existing?.km ?? '';
+      setRunTypeOptions(row.elements.type,existing?.type || (value?plannedOn(value)?.type:null));
+      row.dataset.originalType=row.elements.type.value;
       row.dataset.original=km.value;
       row.querySelector('small').textContent=existing?'저장된 거리 '+kmText(existing.km)+' km · 수정 가능':'';
       status.textContent='';
@@ -193,6 +211,8 @@ function mountMileage(today){
         if(entries.has(date)){status.textContent='같은 날짜가 두 번 있습니다. 날짜를 확인해 주세요.';row.elements.date.focus();return;}
         const key=journalPrefix+date,old=runOn(date);
         const run=updatedRun(old,km,date);
+        run.type=row.elements.type.value;
+        run.different=differsFromPlan(run.type,run.planned);
         entries.set(date,{key,previous:localStorage.getItem(key),run});
       }
       for(const entry of entries.values()){
