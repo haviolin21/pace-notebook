@@ -99,7 +99,7 @@ function mountRecordEditor(onApply,onCancel){
     if(invalid){
       preview.textContent = empty ? '완주 기록을 입력해 주세요.' : '선택한 거리와 기록을 확인해 주세요. 예: 4859 또는 48:59';
     }else if(paces && (!applied || ['d','t','frequency'].some(key => applied[key] !== record[key]))){
-      preview.textContent = '입력 확인 · '+raceDistances[record.d]+' / '+record.t+' · 아직 적용 전';
+      preview.textContent = '입력 확인 · '+raceDistances[record.d]+' / '+record.t+' · 예상 이지런 '+paceRange(paces)+' · 저장 전';
     }else{
       preview.textContent = paces ? '현재 적용된 기록 · '+raceDistances[record.d]+' / '+record.t : '';
     }
@@ -172,6 +172,7 @@ ${profileFields()}
     <p id="pb-intro">최근 5km·10km·하프·풀코스 중 한 거리의 최고기록을 넣으면 이지런, 템포런, 인터벌 페이스를 볼 수 있어요.</p>
   `);
   tool('내 PB로 훈련 강도 계산', `
+    <a href="#pace">러닝머신 속도 계산</a>
     <button id="edit-record" type="button" hidden>기록 수정</button><div id="zones"></div>
 ${recordFields()}
     <small>최근 전력 기록을 기준으로 추정합니다. 적용한 기록은 이 브라우저에 저장됩니다.</small>

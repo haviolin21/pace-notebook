@@ -32,6 +32,11 @@ function effectivePlan(book,week){
   return book.weeks[week] ?? (book.hasRoutine ? book.routine : null);
 }
 function readWeeklyPlan(){return effectivePlan(readPlanBook(),planMonday());}
+function plannedOn(date){
+  const day=(new Date(date+'T00:00:00Z').getUTCDay()+6)%7;
+  try{return effectivePlan(readPlanBook(),planMonday(date))?.find(session=>session.day===day) || null;}
+  catch{return null;}
+}
 function sessionDose(s){return s.minutes!=null ? Number(s.minutes)+'분' : Number(s.km)+'km';}
 const dayPurpose = {
   '걷기·달리기':'걷기 사이에 짧은 달리기 넣기',이지런:'대화할 수 있는 속도로',
@@ -109,7 +114,7 @@ function mountMove(host,date,session,after){
   if(!session || runOn(date))return;
   const today=planToday(),week=planMonday(date);
   const box=document.createElement('details');
-  box.innerHTML='<summary>다른 날로 이동</summary><form><label>옮길 날짜<input name="date" type="date" required></label><button type="submit">이날로 이동</button><small role="status"></small></form>';
+  box.innerHTML='<summary>다른 날로 이동</summary><form><label>옮길 날짜<input name="date" type="date" required></label><button type="submit">이번 훈련만 이동</button><small>다음 주 반복 일정은 기존 요일을 따릅니다.</small><small role="status"></small></form>';
   host.append(box);
   const form=box.querySelector('form'),input=form.elements.date,msg=box.querySelector('small');
   input.min=today;
@@ -198,7 +203,8 @@ function mountPlanner(){
     function moved(dest){book=readPlanBook();saved=effectivePlan(book,week);note=dest+'로 훈련을 옮겼습니다.';draw();}
     if(upcoming)mountMove($('#next-move'),upcoming.date,upcoming.session,moved);
     planDays.forEach((name,day)=>{
-      const session=sessions.find(s=>s.day===day), li=document.createElement('li');
+      const scheduled=sessions.find(s=>s.day===day);
+      const session=!editing && done[day] && Object.hasOwn(done[day],'planned')?done[day].planned:scheduled, li=document.createElement('li');
       const title=session?session.type+' · '+sessionDose(session):'휴식';
       const badge=done[day]?planOutcome(session,done[day]):dated[day]<today && session?'기록 없음':dated[day]===today?'오늘':'';
       li.innerHTML=`<details><summary class="plan-day-summary"><span>${name}요일</span><span><b>${title}</b></span><span>${editing?(session?'편집':'추가'):(badge || (session?'예정':''))}</span></summary><div class="plan-day-body"></div></details>`;

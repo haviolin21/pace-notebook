@@ -23,31 +23,49 @@ function shiftMonth(first,offset){
   date.setUTCMonth(date.getUTCMonth()+offset,1);
   return date.toISOString().slice(0,10);
 }
-function mountMileage(today,onChange){
+function mountMileage(today){
   const yesterday=shiftPlanDate(today,-1),thisMonth=monthStart(today);
   let month=thisMonth,selected='';
-  tool('내 마일리지',`<div id="months"><div class="month-heading"><button type="button" id="prev-month" aria-label="이전 달">‹</button><h4 id="month-label"></h4><button type="button" id="next-month" aria-label="다음 달">›</button></div>
+  tool('월별 마일리지',`<div id="months"><div class="month-heading"><button type="button" id="prev-month" aria-label="이전 달">‹</button><h4 id="month-label"></h4><button type="button" id="next-month" aria-label="다음 달">›</button></div>
     <strong id="month-total"></strong><p id="month-compare"></p><div id="month-bars" aria-label="월별 거리 비교"></div>
-    <div class="month-grid" id="month-days"></div><small id="other-totals"></small></div><p id="run-receipt"></p>
+    <div class="month-grid" id="month-days"></div><small id="other-totals"></small></div><button type="button" id="jump-log">지난 러닝 기록하기</button><ul id="month-runs" aria-label="날짜별 기록"></ul>
     <details id="past-runs"><summary>여러 날짜 입력</summary><form id="past-form"><div id="past-rows"></div>
     <div class="actions"><button type="button" id="past-add">다른 날짜 추가</button><button type="submit">기록 저장</button></div></form></details>
     <p role="status" id="past-status"></p>
-    <dialog id="day-dialog" aria-labelledby="dialog-date"><form id="calendar-edit"><h3 id="dialog-date"></h3><label id="past-date-label" hidden>러닝 날짜<input type="date" name="runDate" required></label>
+    <dialog id="day-dialog" aria-labelledby="dialog-date"><form id="calendar-edit"><h3 id="dialog-date"></h3><p id="dialog-plan"></p><label id="past-date-label" hidden>러닝 날짜<input type="date" name="runDate" required></label>
     <label>달린 거리 (km)<input type="number" name="km" min=".01" step=".01" inputmode="decimal" required></label>
+    <label>운동 시간 (선택)<input name="elapsed" placeholder="예: 48:59" inputmode="numeric"></label>
+    <label>평균 페이스 (선택)<input name="pace" placeholder="예: 4:53" inputmode="numeric"></label>
+    <label>스크린샷으로 입력<input type="file" name="photo" accept="image/*"></label><small class="photo-status" role="status"></small>
     <label><input type="checkbox" name="different"> 다르게 달렸어요</label><label id="calendar-type" hidden>실제 훈련<select name="type"></select></label>
     <div class="actions"><button type="submit">저장</button><button id="calendar-cancel" type="button">취소</button></div><p role="status"></p></form></dialog>`);
   const form=$('#past-form'),edit=$('#calendar-edit'),dialog=$('#day-dialog');
+  const resetPhoto=mountScreenshotImport(edit);
+  dialog.addEventListener('close',resetPhoto);
+  function updatePace(){
+    const seconds=duration(edit.elements.elapsed.value,true), km=edit.elements.km.valueAsNumber;
+    edit.elements.pace.disabled=seconds>0 && km>0;
+    if(edit.elements.pace.disabled)edit.elements.pace.value=time(Math.round(seconds/km));
+  }
+  edit.addEventListener('input',updatePace);
   runTypes.forEach(t=>edit.elements.type.add(new Option(t,t)));
   edit.elements.different.onchange=()=>{$('#calendar-type').hidden=!edit.elements.different.checked;};
-  function updatedRun(old,km){
-    return {...old,type:old?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
+  function updatedRun(old,km,date){
+    const planned=old && Object.hasOwn(old,'planned')?old.planned:plannedOn(date);
+    return {...old,planned,type:old?.type||planned?.type||'자유주',km,pace:old?.elapsed?Math.round(old.elapsed/km):old?.km===km?old.pace:null};
   }
   const dateTitle=date=>Number(date.slice(0,4))+'년 '+Number(date.slice(5,7))+'월';
   function loadDate(date){
+    resetPhoto();
     selected=date;
     const run=runOn(date);
     $('#dialog-date').textContent=date+' · '+(run?'기록 수정':'러닝 추가');
+    const planned=run && Object.hasOwn(run,'planned')?run.planned:plannedOn(date);
+    $('#dialog-plan').textContent=planned?'예정 · '+planned.type+' '+sessionDose(planned):'';
     edit.elements.km.value=run?.km??'';
+    edit.elements.elapsed.value=run?.elapsed?time(run.elapsed):'';
+    edit.elements.pace.value=run?.pace?time(run.pace):'';
+    updatePace();
     edit.elements.different.checked=!!run?.different;
     edit.elements.type.value=runTypes.includes(run?.type)?run.type:'자유주';
     edit.elements.different.onchange();
@@ -66,11 +84,16 @@ function mountMileage(today,onChange){
   $('#calendar-cancel').onclick=()=>dialog.close();
   edit.onsubmit=e=>{
     e.preventDefault();
-    const old=runOn(selected),run=updatedRun(old,edit.elements.km.valueAsNumber);
+    const old=runOn(selected),run=updatedRun(old,edit.elements.km.valueAsNumber,selected);
+    for(const key of ['elapsed','pace']){
+      const field=edit.elements[key];
+      const value=field.value.trim();
+      const seconds=duration(value,key==='elapsed');
+      if(value && !seconds){edit.querySelector('[role=status]').textContent='입력한 시간을 확인해 주세요.';field.focus();return;}
+      run[key]=seconds || null;
+    }
     run.different=edit.elements.different.checked;
-    const day=(new Date(selected+'T00:00:00Z').getUTCDay()+6)%7;
-    let planned;
-    try{planned=effectivePlan(readPlanBook(),planMonday(selected))?.find(s=>s.day===day);}catch{}
+    const planned=run.planned;
     if(run.different)run.type=edit.elements.type.value;
     else if(planned && (!old || old.different))run.type=planned.type;
     try{localStorage.setItem(journalPrefix+selected,JSON.stringify(run));}
@@ -78,9 +101,8 @@ function mountMileage(today,onChange){
     for(const row of rows.children){
       if(row.elements.date.value===selected && row.elements.km.value===row.dataset.original)row.elements.date.onchange();
     }
-    month=monthStart(selected);dialog.close();onChange();
+    month=monthStart(selected);dialog.close();render();
     $('#month-days [data-date="'+selected+'"]').focus({preventScroll:true});
-    if(!edit.elements.runDate.disabled)$('#log-status').textContent=selected+' · '+kmText(run.km)+' km 저장했습니다.';
     status.textContent=selected+' · '+kmText(run.km)+' km 저장했습니다.';
   };
   function showMonth(first){month=first;render();}
@@ -109,6 +131,12 @@ function mountMileage(today,onChange){
       b.innerHTML='<small>'+ (s.count?kmText(s.km):'—')+'</small><i></i><span>'+Number(m.slice(5,7))+'월</span>';
       b.style.setProperty('--height',Math.round(34*s.km/max)+'px');b.onclick=()=>showMonth(m);bars.append(b);
     });
+    const list=$('#month-runs');list.replaceChildren();
+    for(const run of runs.filter(run=>run.date>=month && run.date<next)){
+      const item=document.createElement('li'), button=document.createElement('button');
+      button.textContent=run.date.slice(5).replace('-','/')+'　'+run.type+'　'+kmText(run.km)+' km'+(run.elapsed?' · '+time(run.elapsed):'');
+      button.onclick=()=>openDate(run.date);item.append(button);list.append(item);
+    }
     const grid=$('#month-days');grid.replaceChildren();
     for(const day of planDays){const label=document.createElement('small');label.textContent=day;grid.append(label);}
     const offset=(new Date(month+'T00:00:00Z').getUTCDay()+6)%7;
@@ -164,7 +192,7 @@ function mountMileage(today,onChange){
         const date=row.elements.date.value,km=row.elements.km.valueAsNumber;
         if(entries.has(date)){status.textContent='같은 날짜가 두 번 있습니다. 날짜를 확인해 주세요.';row.elements.date.focus();return;}
         const key=journalPrefix+date,old=runOn(date);
-        const run=updatedRun(old,km);
+        const run=updatedRun(old,km,date);
         entries.set(date,{key,previous:localStorage.getItem(key),run});
       }
       for(const entry of entries.values()){
@@ -177,11 +205,11 @@ function mountMileage(today,onChange){
       status.textContent='저장하지 못했습니다. 브라우저 저장 설정을 확인해 주세요.';return;
     }
     const next=shiftPlanDate([...entries.keys()].sort()[0],-1);
-    month=monthStart([...entries.keys()].sort().at(-1));onChange();rows.replaceChildren();addRow(next);
+    month=monthStart([...entries.keys()].sort().at(-1));render();rows.replaceChildren();addRow(next);
     $('#past-runs').open=false;
     status.textContent=Array.from(entries,([date,{run}])=>date+' · '+kmText(run.km)+' km').join(' / ')+' 저장했습니다.';
   };
-  addRow(yesterday);return render;
+  addRow(yesterday);render();
 }
 const raceGoals={
   '5km':{distance:5,guide:'NHS 첫 5K는 주 3회 걷기와 달리기로 시작해 9주 동안 연속 30분 달리기를 목표로 합니다.',url:'https://www.nhs.uk/better-health/get-active/get-running-with-couch-to-5k/couch-to-5k-running-plan/'},

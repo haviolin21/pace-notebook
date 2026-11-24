@@ -146,17 +146,17 @@ function calculator(){
   mountSplits();
 }
 const shoePhotos = {
-  "everyday": "https://cdn11.bigcommerce.com/s-21x65e8kfn/images/stencil/original/products/76245/402233/ASI15672_1000_3__31148.1739553593.jpg",
-  "stable": "https://0990b9.a-cdn.akinoncloud.com/products/2025/08/06/7485083/1242d795-d05c-48f4-bcf6-a055038bee3d.jpg",
-  "cushion": "https://gambol.in/cdn/shop/files/7_030551fb-ed78-4dd7-aa7e-c63545abee1a.jpg?v=1761547343",
-  "bounce": "https://thelooprunning.com/cdn/shop/files/IMG_5047.png?v=1776187047",
-  "speed": "https://static.netshoes.com.br/produtos/tenis-adidas-adizero-evo-sl-masculino/28/FBA-6207-028/FBA-6207-028_zoom1.jpg?ts=1781239974",
-  "race": "https://cdn.media.amplience.net/i/sportinglife/25922892_WHITE-BLUE-YELLOW_0/Mens-Adizero-Adios-Pro-4-Running-Shoe-WHITE-BLUE-YELLOW?%24default%24=&fmt=auto",
-  "trail": "https://assets.adidas.com/images/h_2000%2Cf_auto%2Cq_auto%2Cfl_lossy%2Cc_fill%2Cg_auto/455bb02ca4d0437cbb7c1bd7b2344f2c_9366/Chaussure_de_trail_running_Terrex_Agravic_3_Blanc_JI0955_HM1.jpg",
-  "peg": "https://cdn.hiconsumption.com/wp-content/uploads/2024/06/Nike-Pegasus-41-0-Hero.jpg",
-  "ghost": "https://www.fit2run.com/cdn/shop/files/110418_125_1_358439d4-f755-4b3e-80bf-e746ddca3c6e.png?v=1723737649&width=1200",
+  "everyday": "images/asics-gel-cumulus-27.webp",
+  "stable": "images/asics-gel-kayano-32.webp",
+  "cushion": "images/asics-gel-nimbus-27.webp",
+  "bounce": "images/asics-novablast-5.webp",
+  "speed": "images/adidas-adizero-evo-sl.webp",
+  "race": "images/adidas-adizero-adios-pro-4.webp",
+  "trail": "images/adidas-terrex-agravic-3.webp",
+  "peg": "images/nike-pegasus-41.webp",
+  "ghost": "images/brooks-ghost-16.webp",
   "speed4": "images/saucony-endorphin-speed-4.webp",
-  "chall": "https://runpacers.com/cdn/shop/files/Mens-HOKA-ONE-ONE-Challenger-ATR-7-Bellwether-Blue-Stone-Blue.jpg?v=1727204241&width=2200"
+  "chall": "images/hoka-challenger-atr-7.webp"
 };
 const shoeGuideSource = 'https://www.asics.com/us/en-us/blog/gel-kayano-gel-nimbus-and-gel-cumulus-which-shoe-is-right-for-me/';
 const shoeModels = {
@@ -207,7 +207,6 @@ function shoes(){
 
 const groups = [
   {label:'오늘', pages:[['today','오늘의 러닝',todayRunning]]},
-  {label:'계산', pages:[['pace','페이스 계산기',calculator]]},
   {label:'훈련', pages:[
     ['plan','훈련 계획',() => {
       $('#screen').insertAdjacentHTML('beforeend','<div id="planner"></div>');
@@ -217,9 +216,11 @@ const groups = [
     ['stretch','스트레칭 팁',stretchingGuide],
     ['nutrition','식단 추천',nutritionGuide]
   ]},
-  {label:'날씨', pages:[['weather','날씨와 복장',weather]]},
-  {label:'러닝화', pages:[['shoes','러닝화 추천',shoes]]},
-  {label:'대회', pages:[['races','대회 정보',races], ['rank','대회 티어',ranking]]}
+  {label:'기록', pages:[['records','러닝 기록',() => mountMileage(planToday())]]},
+  {label:'도구', pages:[
+    ['pace','페이스 계산기',calculator], ['weather','날씨와 복장',weather],
+    ['shoes','러닝화 추천',shoes], ['races','대회 정보',races], ['rank','대회 티어',ranking]
+  ]}
 ];
 const nav = $('.tabs'), subnav = $('.subnav');
 const primaryLinks = groups.map(group => {

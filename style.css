@@ -172,7 +172,7 @@ summary { font-weight: 700; }
 .coach-sessions small { text-align: right; }
 .coach-sessions p { margin-top: 7px; color: var(--muted); font-size: .9rem; }
 @media (max-width: 670px) {
-  .tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .coach-input-feedback { color: var(--muted); font-size: .9rem; margin-top: 6px; }
@@ -354,3 +354,13 @@ summary { font-weight: 700; }
 #finished-title { padding-right:5rem; }
 #today-overview:not(.finished-today) :is(#last-run,#after-run) { display:none; }
 .today-card .today-intro { color:#d3e1cb; font-size:.875rem; margin:16px 0 0; }
+
+#screen #begin-recommend,#screen #record-link { display:inline-flex;align-items:center;min-height:46px;padding:8px 18px;background:#def6a6;color:#173c2c;border:none;border-radius:10px;text-decoration:none;font-weight:700; }
+#screen #open-run.secondary-action { background:transparent;color:#eef5e4;border:1px solid #a6bdac; }
+.finished-today :is(#begin-recommend,#first-question,.today-links) { display:none!important; }
+#first-question { max-width:30rem;margin:12px 0;padding:16px;background:var(--card);color:var(--ink);border-radius:12px; }
+#recommend-preview { margin-block:12px; }
+#month-runs { padding:0;list-style:none; }
+#screen #month-runs button { width:100%;text-align:left;border-radius:0;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink); }
+#done-distance { font-size:clamp(1.4rem,5vw,2rem)!important; }
+.today-links a,.next-session summary { display:inline-flex;align-items:center;min-height:44px; }
