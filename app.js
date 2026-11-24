@@ -155,7 +155,7 @@ const shoePhotos = {
   "trail": "https://assets.adidas.com/images/h_2000%2Cf_auto%2Cq_auto%2Cfl_lossy%2Cc_fill%2Cg_auto/455bb02ca4d0437cbb7c1bd7b2344f2c_9366/Chaussure_de_trail_running_Terrex_Agravic_3_Blanc_JI0955_HM1.jpg",
   "peg": "https://cdn.hiconsumption.com/wp-content/uploads/2024/06/Nike-Pegasus-41-0-Hero.jpg",
   "ghost": "https://www.fit2run.com/cdn/shop/files/110418_125_1_358439d4-f755-4b3e-80bf-e746ddca3c6e.png?v=1723737649&width=1200",
-  "speed4": "https://media.rundna.com.au/476e5354-adb9-43d7-8c7c-9ee7030a6eb6__L.jpg",
+  "speed4": "images/saucony-endorphin-speed-4.webp",
   "chall": "https://runpacers.com/cdn/shop/files/Mens-HOKA-ONE-ONE-Challenger-ATR-7-Bellwether-Blue-Stone-Blue.jpg?v=1727204241&width=2200"
 };
 const shoeGuideSource = 'https://www.asics.com/us/en-us/blog/gel-kayano-gel-nimbus-and-gel-cumulus-which-shoe-is-right-for-me/';
