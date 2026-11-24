@@ -278,7 +278,7 @@ function todayRunning(){
   let suggestion=null;
   try{
     const saved=JSON.parse(localStorage.getItem(todayRunKey));
-    if(saved?.date===dateKey && [15,20,30].includes(saved.minutes))suggestion=saved;
+    if(saved?.date===dateKey && Number.isSafeInteger(saved.minutes) && saved.minutes>0)suggestion=saved;
   }catch{}
   tool(dateLabel, `
     <div id="today-overview">
@@ -288,7 +288,8 @@ function todayRunning(){
       <button type="button" id="begin-recommend" hidden>첫 러닝 추천받기</button>
       <form id="first-question" hidden>
         <label>최근에는 어떻게 달렸나요?<select name="experience"><option value="new">처음이거나 한동안 쉬었어요</option><option value="regular">가볍게 달리고 있어요</option></select></label>
-        <label>오늘 가능한 시간<select name="minutes"><option>15</option><option selected>20</option><option>30</option></select></label>
+        <label>오늘 가능한 시간 (분)<input type="number" name="minutes" value="20" min="1" step="1" inputmode="numeric" required></label>
+        <div class="actions" role="group" aria-label="시간 빠른 선택"><button type="button" data-minutes="15">15분</button><button type="button" data-minutes="20">20분</button><button type="button" data-minutes="30">30분</button></div>
         <p id="recommend-preview" aria-live="polite"></p><button type="submit">이대로 선택</button><button type="button" id="cancel-recommend">취소</button>
       </form>
       <div id="pick-session">
@@ -464,12 +465,21 @@ function todayRunning(){
   };
   const question=$('#first-question');
   function suggestionText(type,minutes){
-    if(type==='이지런')return '최근 가볍게 달린 경험을 반영했어요. 5분 걷고 '+(minutes-10)+'분 편하게 달린 뒤 5분 걸으세요.';
-    return '첫 러닝이나 복귀를 위한 구성입니다. 5분 걷고 '+(minutes-10)+'분 동안 1분 달리기와 90초 걷기를 반복한 뒤 5분 걸으세요.';
+    if(minutes<3)return minutes+'분 동안 가볍게 걸으세요.';
+    const walk=Math.min(5,Math.floor(minutes/3));
+    const middle=minutes-2*walk;
+    const exercise=type==='이지런'?'편하게 달리기':middle<3?'가볍게 걷거나 달리기':'1분 달리기와 90초 걷기 반복';
+    return walk+'분 걷기 → '+middle+'분 동안 '+exercise+' → '+walk+'분 걷기';
   }
   function previewSuggestion(){
     const type=question.elements.experience.value==='regular'?'이지런':'걷기·달리기';
-    const minutes=Number(question.elements.minutes.value);
+    const minutes=question.elements.minutes.valueAsNumber;
+    const valid=Number.isSafeInteger(minutes) && minutes>0;
+    question.querySelector('button[type=submit]').disabled=!valid;
+    for(const button of question.querySelectorAll('[data-minutes]')){
+      button.setAttribute('aria-pressed',String(minutes===Number(button.dataset.minutes)));
+    }
+    if(!valid){$('#recommend-preview').textContent='시간을 1분 이상의 정수로 입력해 주세요.';return null;}
     $('#recommend-preview').textContent=type+' '+minutes+'분 · '+suggestionText(type,minutes);
     return {type,minutes};
   }
@@ -478,8 +488,11 @@ function todayRunning(){
     if(suggestion){question.elements.minutes.value=suggestion.minutes;question.elements.experience.value=suggestion.type==='이지런'?'regular':'new';}
     previewSuggestion();showAdvice();question.elements.experience.focus();
   }
-  question.onchange=previewSuggestion;
-  question.onsubmit=e=>{e.preventDefault();const pick=previewSuggestion();choose(pick.type,pick);};
+  question.oninput=previewSuggestion;
+  for(const button of question.querySelectorAll('[data-minutes]')){
+    button.onclick=()=>{question.elements.minutes.value=button.dataset.minutes;previewSuggestion();};
+  }
+  question.onsubmit=e=>{e.preventDefault();const pick=previewSuggestion();if(pick)choose(pick.type,pick);};
   $('#begin-recommend').onclick=openQuestion;
   $('#cancel-recommend').onclick=()=>{question.hidden=true;showAdvice();session.focus();};
   function choose(next,pick=null){
